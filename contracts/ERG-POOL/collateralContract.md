@@ -1,6 +1,6 @@
 ```scala
 {
-    val repaymentContract     = fromBase58("6YmLa5cHbNo3KogBYtDrLSubdPLRqcEymVA17ZfjNaTz")
+    	val repaymentContract     = fromBase58("6YmLa5cHbNo3KogBYtDrLSubdPLRqcEymVA17ZfjNaTz")
 	val interestBoxNFT        = fromBase58("Gne6mUgPuJmzATwkNCpMyZp173K76dQEC9jMTGpDvP3p")
 	val sigUSDTokenId         = fromBase58("GYATox71P9XAERmzoDdTGELa62f5ALyjxJLRSfJfKsh")
 	val sUsdErgDexPoolNFT     = fromBase58("BJbaZAXMoFm9gi2MBXA9eyPi38ugjKZ66SQrnwQmoDNj")
