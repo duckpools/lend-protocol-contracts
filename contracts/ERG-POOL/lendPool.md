@@ -64,14 +64,13 @@
 	val validDeltaErg           = deltaErg > 0
 	val validDeltaLp            = deltaLP == 0
 	val validDeltaBorrowDeposit = deltaErg >= deltaBorrow * - 1	|| (borrow0 - deltaErg < 0  && borrow1 == 0) // this ensures LP value cannot decrease
+	val minBorrowValue = borrow1 >= 0 // ensures delta borrow cannot be negative
 	
-	val minBorrowValue = borrow1 >= 0 // redundant please remove later
-
 	val validDeposit = (
 		validSuccessorScript &&
 		preservedPoolNFT &&
 		validDeltaErg &&
-    validLP &&
+		validLP &&
 		validDeltaLp &&
 		noMoreTokens &&
 		validDeltaBorrowDeposit &&
@@ -113,21 +112,24 @@
 		}
 		val validInterestIndex   = collateralBox.R6[Int].get == interestHistory.size - 1
 
-		val validPoolErg = deltaErg * -1 == borrowAmount
+		val validLendPoolErg = deltaErg * -1 == borrowAmount
 		val validBorrowDelta = deltaBorrow == borrowAmount
 		
 		val validMinLoanValue = borrowAmount >= minLoanValue
+		
+		val validLendPoolTokens = successor.tokens == SELF.tokens
+		
+		val validCollateralBoxRegisters = collateralBox.R5[Coll[Byte]].isDefined // to prevent compilation error for collateral box
 
 		val validBorrow = (
 			validSuccessorScript &&
+			validLendPoolErg &&
+			validLendPoolTokens &&
+			validBorrowDelta &&
 			validCollateralBoxScript &&
+			validCollateralBoxRegisters &&
 			validInterestBox &&
 			validCollateral &&
-			validPoolErg &&
-			preservedPoolNFT &&
-			validDeltaLp &&
-			noMoreTokens && 
-			validBorrowDelta &&
 			validInterestIndex &&
 			validMinLoanValue
 		) 
