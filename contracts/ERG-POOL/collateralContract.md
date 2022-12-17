@@ -17,7 +17,7 @@
 	val forcedLiquidateHeight = 1000000
 	
  
-    val borrowerBox  = OUTPUTS(0) // No safety branches done, assumes DEX box will be Output(0) and have tokens defined
+   	val borrowerBox  = OUTPUTS(0) // No safety branches done, assumes DEX box will be Output(0) and have tokens defined
 	val repaymentBox = OUTPUTS(1)   
 	val interestBox  = CONTEXT.dataInputs(0)
     
@@ -43,24 +43,24 @@
 	
 	val validBorrowerTokens = receivedTokens == heldTokens
     
-    val repayment = (
+    	val repayment = (
 		validRepaymentScript &&
-        validInterestNFT &&
-        validRepaymentValue &&
+        	validInterestNFT &&
+        	validRepaymentValue &&
 		validRecordOfLoan &&
-        validBorrowerScript &&
+        	validBorrowerScript &&
 		validBorrowerTokens
-    )
+    	)
 	
 	val liquidation = if (INPUTS(0).tokens.size >= 3) {
 		val dexBox = INPUTS(0)
-			
-		val ergInDexPool    = dexBox.value 
-		val tokenInDexPool  = dexBox.tokens(2)._2 
+
+		val ergInDexPool     = dexBox.value 
+		val tokenInDexPool   = dexBox.tokens(2)._2 
 		val nanoErgsPerToken = ergInDexPool / tokenInDexPool
-		
+
 		val totalOwed = loanAmount * compoundedInterest / InterestMultiplier
-			
+
 		val validDexBox = if (heldTokens._1 == sigUSDTokenId) {
 			dexBox.tokens(0)._1 == sUsdErgDexPoolNFT
 		} else if (heldTokens._1 == sigRsvTokenId) {
