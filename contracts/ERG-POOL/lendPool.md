@@ -1,6 +1,6 @@
 ```scala
 {
-	val InitiallyLockedLP    = 9000000001000001L // Set 1000001 higher than arbitary max LP value such that initial lend token value is 1 nanoErg 
+	val InitiallyLockedLP    = 9000000001000000L // Set 1000000 higher than arbitary max LP value such that initial lend token value is 1 nanoErg 
 	val collateralBoxScript  = fromBase58("2mPHzyWLuq8yxUdsmCSzAYAyveFtvWhtqNyBybKEkkqE")
 	val sigUSDTokenId        = fromBase58("GYATox71P9XAERmzoDdTGELa62f5ALyjxJLRSfJfKsh")
 	val sUsdErgDexPoolNFT    = fromBase58("BJbaZAXMoFm9gi2MBXA9eyPi38ugjKZ66SQrnwQmoDNj")
