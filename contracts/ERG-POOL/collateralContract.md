@@ -1,6 +1,6 @@
 ```scala
 {
-  	val repaymentContract     = fromBase58("6YmLa5cHbNo3KogBYtDrLSubdPLRqcEymVA17ZfjNaTz")
+    val repaymentContract     = fromBase58("6YmLa5cHbNo3KogBYtDrLSubdPLRqcEymVA17ZfjNaTz")
 	val interestBoxNFT        = fromBase58("Gne6mUgPuJmzATwkNCpMyZp173K76dQEC9jMTGpDvP3p")
 	val sigUSDTokenId         = fromBase58("GYATox71P9XAERmzoDdTGELa62f5ALyjxJLRSfJfKsh")
 	val sUsdErgDexPoolNFT     = fromBase58("BJbaZAXMoFm9gi2MBXA9eyPi38ugjKZ66SQrnwQmoDNj")
@@ -14,6 +14,7 @@
 	val liquidationThreshold  = 12
 	val liquidationMultiplier = 10
 	val minTxFee              = 1000000L
+	val forcedLiquidateHeight = 1000000
 	
  
     val borrowerBox  = OUTPUTS(0) // No safety branches done, assumes DEX box will be Output(0) and have tokens defined
@@ -68,7 +69,7 @@
 			false
 		}
 		
-		val liquidationAllowed        = heldTokens._2 <= (totalOwed * liquidationThreshold) / (liquidationMultiplier * nanoErgsPerToken)
+		val liquidationAllowed        = heldTokens._2 <= (totalOwed * liquidationThreshold) / (liquidationMultiplier * nanoErgsPerToken) || HEIGHT > forcedLiquidateHeight 
 		val minValueMet               = repaymentBox.value >= ((heldTokens._2 * nanoErgsPerToken * dexLpFee) / (lpMultiplier)) - maxTxFee
 		
 		 (
@@ -76,15 +77,6 @@
 			validDexBox &&
 			minValueMet &&
 			liquidationAllowed &&
-			validInterestNFT &&
-			validRecordOfLoan
-		) ||
-		// backdoor to liquidate all loans after block 1000000
-		(
-			validRepaymentScript &&
-			validDexBox &&
-			minValueMet &&
-			HEIGHT > 1000000 &&
 			validInterestNFT &&
 			validRecordOfLoan
 		)
