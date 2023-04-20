@@ -5,6 +5,7 @@
     val InterestBoxNft = fromBase58("7vkbEYNKCdtBAQy62YdoegYzNTAykVAcfvToNwz65FhZ")
     val ParamaterBoxNft = fromBase58("9M8VueZ5srjdUmi9T2sfkHCZfQPabFbr6EkEiBfP7LWn")
     val MaxLendTokens = 9000000001000000L // Set 1,000,000 higher than true maximum so that genesis lend token value is 1.
+    val MaxBorrowTokens = 9000000000000000L
     val LiquidationThresholdDenomination = 10
     val CollectionElementNotFound = -1
     val MinimumBoxValue = 1000000 // Absolute minimum value allowed for pool box.
@@ -13,18 +14,21 @@
     // Current pool values
     val currentPoolNft = SELF.tokens(0)
     val currentReservedLendTokens = SELF.tokens(1)
-    val currentTotalBorrowed = SELF.R4[Long].get
+    val currentBorrowTokens = SELF.tokens(2)
+    val currentTotalBorrowed = MaxBorrowTokens - currentBorrowTokens._2
 
     // Successor pool values
     val successor = OUTPUTS(0)
     val successorPoolNft = successor.tokens(0)
     val successorReservedLendTokens = successor.tokens(1)
-    val successorTotalBorrowed = successor.R4[Long].get
+    val successorBorrowTokens = SELF.tokens(2)
+    val successorTotalBorrowed = MaxBorrowTokens - successorBorrowTokens._2
 
     // Validation conditions for successor pool box under all spending paths
     val isValidSuccessorScript = successor.propositionBytes == SELF.propositionBytes
     val isPoolNftPreserved = successorPoolNft == currentPoolNft // Not required when the stronger isPoolTokensUnchanged replaces this validation.
     val isValidLendTokenId = successorReservedLendTokens._1 == currentReservedLendTokens._1 // Not required when the stronger isPoolTokensUnchanged replaces this validation.
+    val isValidBorrowTokenId = successorBorrowTokens._1 == currentBorrowTokens._1
     val noAdditionalTokens = successor.tokens.size == 2 // Not required when the stronger isPoolTokensUnchanged replaces this validation.
     val isValidMinValue = successor.value >= MinimumBoxValue // Not required for a deposit since value must be increasing by isAssetsInPoolIncreasing
 
@@ -46,28 +50,30 @@
         isValidSuccessorScript &&
         isPoolNftPreserved &&
         isValidLendTokenId &&
+        isValidBorrowTokenId &&
         noAdditionalTokens &&
         isValidMinValue &&
         isDeltaBorrowedValid &&
         isLendTokenValueMaintained
+
     )
 
     // Allow for deposits
     val deltaAssetsInPool = successorAssetsInPool - currentAssetsInPool
     val deltaReservedLendTokens = successorReservedLendTokens._2 - currentReservedLendTokens._2
-
+    
+    val isLendTokensUnchanged = successorReservedLendTokens == currentReservedLendTokens
     val isAssetsInPoolIncreasing = deltaAssetsInPool > 0
-    val isPoolTokensUnchanged = successor.tokens == SELF.tokens
-    val isDepositDeltaBorrowedValid = deltaAssetsInPool >= deltaTotalBorrowed * -1 || (currentTotalBorrowed - deltaAssetsInPool < 0 && successorTotalBorrowed == 0) // Ensures LP value cannot decrease
-    val isMinBorrowValue = successorTotalBorrowed >= 0 // Likely redudant, but this gurantees total borrowed is non-negative
+    val isDepositDeltaBorrowedValid = deltaTotalBorrowed < 0 // Enforces a deposit to add lend tokens to the pool
 
     // Validate deposit operation
     val isValidDeposit = (
         isValidSuccessorScript &&
-        isPoolTokensUnchanged &&
+        isPoolNftPreserved &&
+        isLendTokensUnchanged &&
+        isValidBorrowTokenId &&
         isAssetsInPoolIncreasing &&
-        isDepositDeltaBorrowedValid &&
-        isMinBorrowValue
+        isDepositDeltaBorrowedValid
     )
 
     // Check for loans
@@ -84,7 +90,8 @@
         val collateralDexNfts = paramaterBox.R6[Coll[Coll[Byte]]].get
         val liquidationPenalties = paramaterBox.R7[Coll[Long]].get
 
-        val loanAmount = collateralBox.R4[Long].get
+        val collateralBorrowTokens = collateralBox.tokens(1)
+        val loanAmount = collateralBorrowTokens._2
 
         // Dex pool values
         val ergInDexPool = dexBox.value
@@ -118,6 +125,7 @@
         }
 
         val isValidCollateral = isAssetMapsToDexNft && isCorrectCollateralAmount
+        val isValidCollateralBorrowTokenId = collateralBorrowTokens._1 == currentBorrowTokens._1
 
         // Check if interest index, penalty array, asset ID, and DEX NFT are valid in collateralBox
         val isValidInterestIndex = collateralBox.R6[Int].get == interestHistory.size - 1
@@ -129,7 +137,6 @@
         val isTotalBorrowedValid = deltaTotalBorrowed == loanAmount
         val isSufficientLoanValue = loanAmount >= MinLoanValue
 
-
         // Check for compilation error prevention in collateralBox
         val isValidCollateralBoxR5 = collateralBox.R5[Coll[Byte]].isDefined
 
@@ -137,12 +144,15 @@
         val IsValidBorrow = (
             isValidSuccessorScript &&
             isAssetAmountValid &&
-            isPoolTokensUnchanged &&
+            isPoolNftPreserved &&
+            isLendTokensUnchanged &&
+            isValidBorrowTokenId &&
             isTotalBorrowedValid &&
             isValidCollateralContract &&
             isValidCollateralBoxR5 &&
             isValidInterestBox &&
             isValidCollateral &&
+            isValidCollateralBorrowTokenId &&
             isValidInterestIndex &&
             isValidThresholdPenaltyArray &&
             isValidDexNft &&
@@ -154,4 +164,4 @@
         sigmaProp(isValidDeposit || isValidExchange)
     }
 }
-
+```
