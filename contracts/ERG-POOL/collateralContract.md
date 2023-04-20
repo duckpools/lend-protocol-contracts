@@ -20,7 +20,8 @@
 
     // Extract variables from SELF
     val heldTokens = SELF.tokens(0)
-    val loanAmount = SELF.R4[Long].get
+    val heldBorrowTokens = SELF.tokens(1)
+    val loanAmount = heldBorrowTokens._2
     val borrower = SELF.R5[Coll[Byte]].get
     val interestIndex = SELF.R6[Int].get
     val liquidationThreshold = SELF.R7[Coll[Long]].get(0)
@@ -41,7 +42,7 @@
     val validBorrowerScript = borrowerBox.propositionBytes == borrower
     val validInterestNFT = interestBox.tokens(0)._1 == InterestBoxNft
     val validRepaymentValue = repaymentBox.value >= (loanAmount * compoundedInterest / InterestMultiplier) + MinimumTransactionFee
-    val validRecordOfLoan = repaymentBox.R4[Long].get == loanAmount
+    val validRecordOfLoan = repaymentBox.tokens(0)._2 == loanAmount && repaymentBox.tokens(0)._1 == heldBorrowTokens._1
     val validBorrowerTokens = receivedTokens == heldTokens
 
     // Check repayment conditions
