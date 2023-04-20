@@ -1,10 +1,11 @@
 ```scala
 {
-	val poolNFT                = fromBase58("GGbKYdk2Qk5tXNYoCBTjMYeKxK5bBZ42raqWv5FXDS52")
+	val poolNFT                = fromBase58("2rEBTtAM81L3PghVyCwCccyh49EXGhSh3n2kLGufMTqe")
 	val minBoxValue            = 1000000
 	val InterestMultiplier     = 1000000
 	val BootstrapTVLDifference = 999999
-	val InitiallyLockedLP      = 9000000000000002L
+	val InitiallyLockedLP      = 9000000000000000L
+  	val MaxBorrowTokens        = 9000000000000000L
 	
 	val successor = OUTPUTS(0)
 	val pool      = CONTEXT.dataInputs(0)
@@ -20,7 +21,7 @@
 	val deltaFinalHeight      = finalHeight - HEIGHT
 	val validDeltaFinalHeight = (deltaFinalHeight >= 0 && deltaFinalHeight <= 30)
 	val supplyLP    = InitiallyLockedLP - pool.tokens(0)._2
-	val borrowed    = pool.R4[Long].get	
+	val borrowed    = MaxBorrowTokens - pool.tokens(2)._2
 	val util        = InterestMultiplier * borrowed / (pool.value + borrowed)
 	val currentRate = Coll(InterestMultiplier + (5000 + util * 13 / 100) / 365) 
 	
