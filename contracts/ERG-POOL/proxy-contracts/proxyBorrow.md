@@ -1,9 +1,10 @@
 ```scala
 {
-	val collateralBoxScript  = fromBase58("2mPHzyWLuq8yxUdsmCSzAYAyveFtvWhtqNyBybKEkkqE")
+	val collateralBoxScript  = fromBase58("BiJiVLmKKPg5xbsxyu8jyzsYeWxuD4oaUkQcqcAak9r2")
 	val minTxFee      = 1000000L
 	val minBoxValue   = 1000000L
-	val poolNFT       = fromBase58("GGbKYdk2Qk5tXNYoCBTjMYeKxK5bBZ42raqWv5FXDS52")
+	val poolNFT       = fromBase58("2rEBTtAM81L3PghVyCwCccyh49EXGhSh3n2kLGufMTqe")
+ 	val BorrowTokenId = fromBase58("BiJiVLmKKPg5xbsxyu8jyzsYeWxuD4oaUkQcqcAak9r2")
 	
 	val user          = SELF.R4[Coll[Byte]].get
 	val requestAmount = SELF.R5[Long].get
@@ -19,8 +20,10 @@
 	val validUserScript          = userBox.propositionBytes == user
 	
 	val validCollateralTokens = collateralTokens(0) == SELF.tokens(0)
+  	val collateralBorrowTokens = collateralBox.tokens(1)
+  	val loanAmount = collateralBorrowTokens._2
 	
-	val validLoanAmount    = collateralBox.R4[Long].get == userBox.value
+	val validLoanAmount    = loanAmount == userBox.value && collateralBorrowTokens._1 == BorrowTokenId
 	val validBorrower      = collateralBox.R5[Coll[Byte]].get == user
 	val validInterestIndex = INPUTS(0).tokens(0)._1 == poolNFT // enforced by pool contract
 	
@@ -59,4 +62,5 @@
 	
 	sigmaProp(exchange || refund) 
 }
+
 ```
