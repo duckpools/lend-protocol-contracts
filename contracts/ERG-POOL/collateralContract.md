@@ -1,6 +1,5 @@
 ```scala
 {
-{
     // Constants
     val RepaymentContractScript = fromBase58("GvFgSpew3VuFc7Tyy4eFmLdyuPqVNDyx7ZTqWwiJUjYy")
     val InterestBoxNft = fromBase58("7vkbEYNKCdtBAQy62YdoegYzNTAykVAcfvToNwz65FhZ")
