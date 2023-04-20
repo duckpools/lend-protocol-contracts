@@ -1,7 +1,7 @@
 ```scala
 {
    // Constants
-    val CollateralContractScript = fromBase58("BiJiVLmKKPg5xbsxyu8jyzsYeWxuD4oaUkQcqcAak9r2")
+    val CollateralContractScript = fromBase58("21oFkHsLgX7ZwQDKrQFwe69o3LyJvqSC2MFTfuuNtMEX")
     val InterestBoxNft = fromBase58("7vkbEYNKCdtBAQy62YdoegYzNTAykVAcfvToNwz65FhZ")
     val ParamaterBoxNft = fromBase58("9M8VueZ5srjdUmi9T2sfkHCZfQPabFbr6EkEiBfP7LWn")
     val MaxLendTokens = 9000000001000000L // Set 1,000,000 higher than true maximum so that genesis lend token value is 1.
@@ -21,7 +21,7 @@
     val successor = OUTPUTS(0)
     val successorPoolNft = successor.tokens(0)
     val successorReservedLendTokens = successor.tokens(1)
-    val successorBorrowTokens = SELF.tokens(2)
+    val successorBorrowTokens = successor.tokens(2)
     val successorTotalBorrowed = MaxBorrowTokens - successorBorrowTokens._2
 
     // Validation conditions for successor pool box under all spending paths
@@ -29,7 +29,6 @@
     val isPoolNftPreserved = successorPoolNft == currentPoolNft // Not required when the stronger isPoolTokensUnchanged replaces this validation.
     val isValidLendTokenId = successorReservedLendTokens._1 == currentReservedLendTokens._1 // Not required when the stronger isPoolTokensUnchanged replaces this validation.
     val isValidBorrowTokenId = successorBorrowTokens._1 == currentBorrowTokens._1
-    val noAdditionalTokens = successor.tokens.size == 2 // Not required when the stronger isPoolTokensUnchanged replaces this validation.
     val isValidMinValue = successor.value >= MinimumBoxValue // Not required for a deposit since value must be increasing by isAssetsInPoolIncreasing
 
     // Calculate lend token supply and held assets for initial and successor pool boxes
@@ -51,11 +50,9 @@
         isPoolNftPreserved &&
         isValidLendTokenId &&
         isValidBorrowTokenId &&
-        noAdditionalTokens &&
         isValidMinValue &&
         isDeltaBorrowedValid &&
         isLendTokenValueMaintained
-
     )
 
     // Allow for deposits
