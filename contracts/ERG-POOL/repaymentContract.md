@@ -1,15 +1,16 @@
 ```scala
 {
 	val txFee   = 1000000L
-	val poolNFT = fromBase58("GGbKYdk2Qk5tXNYoCBTjMYeKxK5bBZ42raqWv5FXDS52")
+  val MaxBorrowTokens        = 9000000000000000L
+	val poolNFT = fromBase58("2rEBTtAM81L3PghVyCwCccyh49EXGhSh3n2kLGufMTqe")
 	
 	val initalPool = INPUTS(0)
 	val finalPool  = OUTPUTS(0)
 	
-	val loanAmount = min(SELF.R4[Long].get, SELF.value - txFee)
+	val loanAmount = SELF.tokens(0)._2
 	
-	val borrow0 = initalPool.R4[Long].get
-	val borrow1 = finalPool.R4[Long].get
+	val borrow0 = MaxBorrowTokens - initalPool.tokens(2)._2
+	val borrow1 = MaxBorrowTokens - finalPool.tokens(2)._2
 	
 	val deltaBorrowed = borrow0 - borrow1 // Amount borrowed will reduce
 	
@@ -19,8 +20,7 @@
 	val deltaValue = finalPool.value - initalPool.value
 	
 	val validValue    = deltaValue >= SELF.value - txFee
-	val validTokens   = finalPool.tokens == initalPool.tokens
-	val validBorrowed = deltaBorrowed == loanAmount || (borrow0 - loanAmount < 0  && borrow1 == 0)
+	val validBorrowed = deltaBorrowed == loanAmount
 	
 	val multiBoxSpendSafety = INPUTS.size == 2
 	
@@ -28,7 +28,6 @@
 		validFinalPool &&
 		validInitialPool &&
 		validValue &&
-		validTokens &&
 		validBorrowed &&
 		multiBoxSpendSafety
 	)
