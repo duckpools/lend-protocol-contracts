@@ -1,15 +1,17 @@
 ```scala
 {
     // Constants
-    val RepaymentContractScript = fromBase58("GvFgSpew3VuFc7Tyy4eFmLdyuPqVNDyx7ZTqWwiJUjYy")
+    val RepaymentContractScript = fromBase58("GNPRjrvm3YH2pGFuLNXr4KfW4gjU1RL1D5hWsCSvpA4S")
     val InterestBoxNft = fromBase58("7vkbEYNKCdtBAQy62YdoegYzNTAykVAcfvToNwz65FhZ")
-    val InterestMultiplier = 1000000L
+    val InterestContractDenomination = 1000000L
     val MaximumNetworkFee = 4000000
     val DexLpTax = 993 // 99.3% retained
     val DexLpTaxDenomination = 1000 
     val LiquidationThresholdDenomination = 10
+    val penaltyDenomination = 10
     val MinimumTransactionFee = 1000000L
     val ForcedLiquidationHeight = 2000000
+    val minimumBoxValue = 1000000
 
     // Output boxes
     val borrowerBox = OUTPUTS(0) // Assumes DEX box will be Output(0) and have tokens defined
@@ -35,13 +37,13 @@
     val historicalRates = interestBox.R4[Coll[Long]].get
     val historySize = historicalRates.size
     val historyToScan = historicalRates.slice(interestIndex, historySize)
-    val compoundedInterest = historyToScan.fold(InterestMultiplier, {(z:Long, base:Long) => z + base - InterestMultiplier})
+    val compoundedInterest = historyToScan.fold(InterestContractDenomination, {(z:Long, base:Long) => z + base - InterestContractDenomination})
 
     // Validate repayment
     val validRepaymentScript = blake2b256(repaymentBox.propositionBytes) == RepaymentContractScript
     val validBorrowerScript = borrowerBox.propositionBytes == borrower
     val validInterestNFT = interestBox.tokens(0)._1 == InterestBoxNft
-    val validRepaymentValue = repaymentBox.value >= (loanAmount * compoundedInterest / InterestMultiplier) + MinimumTransactionFee
+    val validRepaymentValue = repaymentBox.value >= (loanAmount * compoundedInterest / InterestContractDenomination) + MinimumTransactionFee
     val validRecordOfLoan = repaymentBox.tokens(0)._2 == loanAmount && repaymentBox.tokens(0)._1 == heldBorrowTokens._1
     val validBorrowerTokens = receivedTokens == heldTokens
 
@@ -61,14 +63,23 @@
         val ergInDexPool = dexBox.value
         val tokenInDexPool = dexBox.tokens(2)._2
         val nanoErgsPerToken = ergInDexPool / tokenInDexPool
-        val totalOwed = loanAmount * compoundedInterest / InterestMultiplier
+        val totalOwed = loanAmount * compoundedInterest / InterestContractDenomination
         val validDexBox = dexBox.tokens(0)._1 == collateralDexNft
+        val collateralValue = ((heldTokens._2 * nanoErgsPerToken * DexLpTax) / (DexLpTaxDenomination)) - MaximumNetworkFee
         val liquidationAllowed = heldTokens._2 <= (totalOwed * liquidationThreshold) / (LiquidationThresholdDenomination * nanoErgsPerToken) || HEIGHT > ForcedLiquidationHeight
-        val minValueMet = repaymentBox.value >= ((heldTokens._2 * nanoErgsPerToken * DexLpTax) / (DexLpTaxDenomination)) - MaximumNetworkFee
+        val borrowerShare = ((collateralValue - totalOwed) * (penaltyDenomination - liquidationPenalty)) / penaltyDenomination
+        val applyPenalty = if (borrowerShare < minimumBoxValue) {
+            repaymentBox.value >= collateralValue
+        } else {
+            val validRepayment = repaymentBox.value >= totalOwed + ((collateralValue- totalOwed) * liquidationPenalty / penaltyDenomination)
+            val borrwerBox = OUTPUTS(2)
+            val validBorrowerShare = borrowerBox.value >= borrowerShare
+            validRepayment && validBorrowerShare
+        }            
         (
           validRepaymentScript &&
           validDexBox &&
-          minValueMet &&
+          applyPenalty &&
           liquidationAllowed &&
           validInterestNFT &&
           validRecordOfLoan
