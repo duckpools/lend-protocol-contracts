@@ -26,9 +26,9 @@
 
     // Validation conditions for successor pool box under all spending paths
     val isValidSuccessorScript = successor.propositionBytes == SELF.propositionBytes
-    val isPoolNftPreserved = successorPoolNft == currentPoolNft // Not required when the stronger isPoolTokensUnchanged replaces this validation.
-    val isValidLendTokenId = successorReservedLendTokens._1 == currentReservedLendTokens._1 // Not required when the stronger isPoolTokensUnchanged replaces this validation.
-    val isValidBorrowTokenId = successorBorrowTokens._1 == currentBorrowTokens._1
+    val isPoolNftPreserved = successorPoolNft == currentPoolNft 
+    val isValidLendTokenId = successorReservedLendTokens._1 == currentReservedLendTokens._1 // Not required when the stronger isLendTokensUnchanged replaces this validation.
+    val isValidBorrowTokenId = successorBorrowTokens._1 == currentBorrowTokens._1 // Not required when the stronger isBorrowTokensUnchanged replaces this validation.
     val isValidMinValue = successor.value >= MinimumBoxValue // Not required for a deposit since value must be increasing by isAssetsInPoolIncreasing
 
     // Calculate lend token supply and held assets for initial and successor pool boxes
@@ -39,19 +39,20 @@
 
     // Calculate delta and LP values for current and successor pool boxes
     val deltaTotalBorrowed = successorTotalBorrowed - currentTotalBorrowed
-    val isDeltaBorrowedValid = deltaTotalBorrowed == 0
     val currentLendTokenValue = (currentAssetsInPool + currentTotalBorrowed) / currentLendTokensCirculating
     val successorLendTokenValue = (successorAssetsInPool + successorTotalBorrowed) / successorLendTokensCirculating
+	
+	// Additional validation conditions specific to exchange operation
     val isLendTokenValueMaintained = successorLendTokenValue >= currentLendTokenValue // Ensures the current value of an LP token has not decreased
+	val isBorrowTokensUnchanged = successorBorrowTokens == currentBorrowTokens
 
     // Validate exchange operation
     val isValidExchange = (
         isValidSuccessorScript &&
         isPoolNftPreserved &&
         isValidLendTokenId &&
-        isValidBorrowTokenId &&
         isValidMinValue &&
-        isDeltaBorrowedValid &&
+        isBorrowTokensUnchanged &&
         isLendTokenValueMaintained
     )
 
