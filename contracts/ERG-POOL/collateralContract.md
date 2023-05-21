@@ -8,7 +8,7 @@
 	val MaximumNetworkFee = 4000000
 	val DexLpTax = 995 
 	val DexLpTaxDenomination = 1000 
-	val LiquidationThresholdDenomination = 10
+	val LiquidationThresholdDenom = 10
 	val PenaltyDenom = 10
 	val MinimumTransactionFee = 1000000L
 	val ForcedLiquidationHeight = 2000000
@@ -99,12 +99,15 @@
 		val successorThresholdPenalty = successor.R6[(Long, Long)].get
 		val successorDexNft = successor.R7[Coll[Byte]].get
 		val successorUserPk = successor.R8[GroupElement].get
-
-		// Get values from dexBox
+		
+		// Extract values from dexBox
 		val dexBox = CONTEXT.dataInputs(3)
-		val ergInDexPool = dexBox.value
-		val tokenInDexPool = dexBox.tokens(2)._2
-		val quotedCollateralValue = ergInDexPool / tokenInDexPool
+		val dexReservesErg = dexBox.value
+		val dexReservesToken = dexBox.tokens(2)._2
+		val inputAmount = successorCollateral._2
+		val collateralValue = (dexReservesErg * inputAmount * DexLpTax) /
+		((dexReservesToken + (dexReservesToken * Slippage / 100)) * DexLpTaxDenomination +
+		(inputAmount * DexLpTax / DexLpTaxDenomination)) - MaximumNetworkFee // Formula from spectrum dex
 
 		// Validate dexBox
 		val validDexBox = dexBox.tokens(0)._1 == currentDexNft
@@ -122,7 +125,7 @@
 			successorUserPk == currentUserPk
 		)
 		// Check sufficient remaining collateral
-		val isCorrectCollateralAmount = successorCollateral._2 >= (totalOwed * liquidationThreshold) / (quotedCollateralValue * LiquidationThresholdDenomination)
+		val isCorrectCollateralAmount = collateralValue >= totalOwed * liquidationThreshold / LiquidationThresholdDenom
 
 		// Allow spending by user if validation conditions met
 		proveDlog(currentUserPk) && 
@@ -173,30 +176,88 @@
 			validParentNft &&
 			validHeadChild 
 		)
+		
+		val partialRepayment = if (OUTPUTS(0).propositionBytes == currentScript) {
+			// Extract values form successor
+			val successor = OUTPUTS(0)
+			val successorScript = successor.propositionBytes
+			val successorValue = successor.value
+			val successorCollateral = successor.tokens(0)
+			val successorBorrowTokens = successor.tokens(1)
+			val successorBorrower = successor.R4[Coll[Byte]].get
+			val successorIndexes = successor.R5[(Int, Int)].get
+			val successorThresholdPenalty = successor.R6[(Long, Long)].get
+			val successorDexNft = successor.R7[Coll[Byte]].get
+			val successorUserPk = successor.R8[GroupElement].get
+			
+			val repaymentMade = totalOwed - successorBorrowTokens._2	
+			
+			// Validate successor values
+			val validSuccessorScript = successorScript == currentScript
+			val retainMinValue = successorValue >= currentValue
+			val retainCollateral = successorCollateral == currentCollateral
+			val retainBorrowTokenId = successorBorrowTokens._1 == currentBorrowTokens._1
+			val retainRegisters = (
+				successorBorrower == currentBorrower &&
+				successorThresholdPenalty == currentThresholdPenalty &&
+				successorDexNft == currentDexNft &&
+				successorUserPk == currentUserPk
+			)
+			val validNewIndexes = successorIndexes == (headChildIndex, headChildRates.size - 1)
+			
+			// Validate repayment
+			val validPartialRepaymentValue = repaymentValue >= repaymentMade
+			val validPartialRecordOfLoan = (
+				repaymentBorrowTokens._2 == currentBorrowTokens._2 - successorBorrowTokens._2  &&
+				repaymentBorrowTokens._1 == currentBorrowTokens._1
+				)
+			
+			// Apply validation conditions
+			(
+				validSuccessorScript &&
+				retainMinValue &&
+				retainCollateral &&
+				retainBorrowTokenId &&
+				retainRegisters &&
+				validNewIndexes &&
+				validRepaymentScript &&
+				validPartialRepaymentValue &&
+				validPartialRecordOfLoan
+			)
+		} else {
+			false 
+		}
 
 		// Check liquidation conditions if DEX box INPUTS(0) (will have tokens.size == 3)
 		val liquidation = if (INPUTS(0).tokens.size >= 3) {
-			// Calculate value of collateral
+			// Extract values from dexBox
 			val dexBox = INPUTS(0)
 			val dexReservesErg = dexBox.value
 			val dexReservesToken = dexBox.tokens(2)._2
 			val inputAmount = currentCollateral._2
-			val validDexBox = dexBox.tokens(0)._1 == currentDexNft
 			val collateralValue = (dexReservesErg * inputAmount * DexLpTax) /
 			((dexReservesToken + (dexReservesToken * Slippage / 100)) * DexLpTaxDenomination +
 			(inputAmount * DexLpTax / DexLpTaxDenomination)) - MaximumNetworkFee // Formula from spectrum dex
+		
+			// Validate DEX box
+			val validDexBox = dexBox.tokens(0)._1 == currentDexNft
 			
-			val liquidationAllowed = collateralValue <= totalOwed * liquidationThreshold / LiquidationThresholdDenomination || HEIGHT > ForcedLiquidationHeight
+			// Check if liquidation is allowed
+			val liquidationAllowed = collateralValue <= totalOwed * liquidationThreshold / LiquidationThresholdDenom || HEIGHT > ForcedLiquidationHeight
+			
+			// Apply penalty on repayment and borrower share
 			val borrowerShare = ((collateralValue - totalOwed) * (PenaltyDenom - liquidationPenalty)) / PenaltyDenom
 			val applyPenalty = if (borrowerShare < MinimumBoxValue) {
 				repaymentValue >= collateralValue
 			} else {
 				val validRepayment = repaymentValue >= totalOwed + ((collateralValue - totalOwed) * liquidationPenalty / PenaltyDenom)
-				val borrwerBox = OUTPUTS(2)
-				val validBorrowerShare = borrowerBox.value >= borrowerShare
-				val validBorrowerAddress = borrowerBox.propositionBytes == currentBorrower
+				val borrowBox = OUTPUTS(2)
+				val validBorrowerShare = borrowBox.value >= borrowerShare
+				val validBorrowerAddress = borrowBox.propositionBytes == currentBorrower
 				validRepayment && validBorrowerShare && validBorrowerAddress
-			}            
+			}   
+
+			// Apply liquidation validations
 			(
 				liquidationAllowed &&
 				validRepaymentScript &&
@@ -211,7 +272,7 @@
 		} else {
 			false
 		}
-	sigmaProp(repayment || liquidation)
+	sigmaProp(repayment || liquidation || partialRepayment)
 	}
 }
 ```
