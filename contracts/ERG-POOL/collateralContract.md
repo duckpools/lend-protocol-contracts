@@ -6,7 +6,6 @@
 	val ParentInterestNft = fromBase58("2wGNGhTcrgRJRgBoQfdPiaT4Wvwx2FtDoqmtkJwWCXXj")
 	val InterestRateDenom = 1000000L
 	val MaximumNetworkFee = 4000000
-	val DexLpTax = 995 
 	val DexLpTaxDenomination = 1000 
 	val LiquidationThresholdDenom = 10
 	val PenaltyDenom = 10
@@ -78,12 +77,8 @@
 	// Validate parent 
 	val validParentNft = parentNft._1 == ParentInterestNft
 
-	// Validate head child if present
-	val validHeadChild = if (liveParentIndex > parentIndex) {
-		headChildNft._1 == ChildInterestNft && headChildIndex == parentInterestRates.size
-	} else {
-		true
-	}
+	// Validate head child (this can be the same as the baseChild if parent has not grown)
+	val validHeadChild = headChildNft._1 == ChildInterestNft && headChildIndex == parentInterestRates.size
 
 	// Branch into collateral adjustments or repayment/ liquidation
 	if(INPUTS(0) == SELF) {
@@ -103,14 +98,16 @@
 		// Extract values from dexBox
 		val dexBox = CONTEXT.dataInputs(3)
 		val dexReservesErg = dexBox.value
+		val dexNft = dexBox.tokens(0)
 		val dexReservesToken = dexBox.tokens(2)._2
 		val inputAmount = successorCollateral._2
-		val collateralValue = (dexReservesErg * inputAmount * DexLpTax) /
+		val dexFee = dexBox.R4[Int].get
+		val collateralValue = (dexReservesErg * inputAmount * dexFee) /
 		((dexReservesToken + (dexReservesToken * Slippage / 100)) * DexLpTaxDenomination +
-		(inputAmount * DexLpTax / DexLpTaxDenomination)) - MaximumNetworkFee // Formula from spectrum dex
+		(inputAmount * dexFee )) - MaximumNetworkFee // Formula from spectrum dex
 
 		// Validate dexBox
-		val validDexBox = dexBox.tokens(0)._1 == currentDexNft
+		val validDexBox = dexNft._1 == currentDexNft
 
 		// Validate successor collateral box
 		val validSuccessorScript = successorScript == currentScript
@@ -162,7 +159,14 @@
 		// Validate repayment
 		val validRepaymentScript = blake2b256(repaymentScript) == RepaymentContractScript
 		val validRepaymentValue = repaymentValue >= totalOwed + MinimumTransactionFee
-		val validRecordOfLoan = repaymentBorrowTokens._2 == loanAmount && repaymentBorrowTokens._1 == currentBorrowTokens._1
+		val validRecordOfLoan = repaymentBorrowTokens == currentBorrowTokens 
+		
+		// Ensure collateral box cannot be duplicate spent 
+		val validSameBoxAttack = if (OUTPUTS(0).R4[Coll[Byte]].isDefined) {
+			OUTPUTS(0).R4[Coll[Byte]].get == SELF.id
+		} else {
+			false
+		}
 
 		// Check repayment conditions
 		val repayment = (
@@ -174,10 +178,11 @@
 			validBaseChildNft &&
 			validBaseChildIndex &&
 			validParentNft &&
-			validHeadChild 
+			validHeadChild &&
+			validSameBoxAttack
 		)
-		
-		val partialRepayment = if (OUTPUTS(0).propositionBytes == currentScript) {
+		val partialRepayment = if (OUTPUTS(0).tokens.size >= 2 && INPUTS(0).tokens.size < 3) {
+			// Partial Repay
 			// Extract values form successor
 			val successor = OUTPUTS(0)
 			val successorScript = successor.propositionBytes
@@ -203,8 +208,11 @@
 				successorDexNft == currentDexNft &&
 				successorUserPk == currentUserPk
 			)
-			val validNewIndexes = successorIndexes == (headChildIndex, headChildRates.size - 1)
-			
+			val validNewIndexes = (
+				successorIndexes(0) >= headChildIndex &&
+				successorIndexes(1) >= headChildRates.size - 1 &&
+			)
+	
 			// Validate repayment
 			val validPartialRepaymentValue = repaymentValue >= repaymentMade
 			val validPartialRecordOfLoan = (
@@ -212,7 +220,7 @@
 				repaymentBorrowTokens._1 == currentBorrowTokens._1
 				)
 			
-			// Apply validation conditions
+			// Apply validation conditions 
 			(
 				validSuccessorScript &&
 				retainMinValue &&
@@ -222,7 +230,11 @@
 				validNewIndexes &&
 				validRepaymentScript &&
 				validPartialRepaymentValue &&
-				validPartialRecordOfLoan
+				validPartialRecordOfLoan &&
+				validBaseChildNft &&
+				validBaseChildIndex &&
+				validParentNft &&
+				validHeadChild
 			)
 		} else {
 			false 
@@ -235,9 +247,10 @@
 			val dexReservesErg = dexBox.value
 			val dexReservesToken = dexBox.tokens(2)._2
 			val inputAmount = currentCollateral._2
-			val collateralValue = (dexReservesErg * inputAmount * DexLpTax) /
+			val dexFee = dexBox.R4[Int].get
+			val collateralValue = (dexReservesErg * inputAmount * dexFee) /
 			((dexReservesToken + (dexReservesToken * Slippage / 100)) * DexLpTaxDenomination +
-			(inputAmount * DexLpTax / DexLpTaxDenomination)) - MaximumNetworkFee // Formula from spectrum dex
+			(inputAmount * dexFee)) - MaximumNetworkFee // Formula from spectrum dex
 		
 			// Validate DEX box
 			val validDexBox = dexBox.tokens(0)._1 == currentDexNft
