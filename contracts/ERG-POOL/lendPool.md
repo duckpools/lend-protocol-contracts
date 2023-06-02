@@ -20,6 +20,7 @@
 	val sFeeDivisorThree = 250
 	val LendTokenMultipler = 1000000000000000L.toBigInt
 	val MaximumNetworkFee = 4000000
+	val forcedLiquidationBuffer = 500000
 
 	// Current pool values
 	val currentScript = SELF.propositionBytes
@@ -144,6 +145,7 @@
 		val collateralThresholdPenalty = collateralBox.R6[(Long, Long)].get
 		val collateralDexNft = collateralBox.R7[Coll[Byte]].get
 		val isUserPkDefined = collateralBox.R8[GroupElement].isDefined
+		val forcedLiquidation = collateralBox.R9[Long].get
 		val loanAmount = collateralBorrowTokens._2
 		val collateralParentIndex = collateralInterestIndexes(0)
 		val collateralChildIndex = collateralInterestIndexes(1)
@@ -197,6 +199,9 @@
 		val isValidParentIndex = collateralParentIndex == parentInterestHistory.size
 		val isValidThresholdPenaltyArray = collateralThresholdPenalty == (liquidationThreshold, liquidationPenalty)
 		val isValidDexNft = collateralDexNft == dexNft._1
+		
+		// Check forced liquidation height
+		val isValidForcedLiquidation = forcedLiquidation > HEIGHT && forcedLiquidation < HEIGHT + forcedLiquidationBuffer
 
 		// Validate Erg and token values in LendPool and collateralBox
 		val isAssetAmountValid = deltaAssetsInPool * -1 == loanAmount
@@ -230,6 +235,7 @@
 			isValidThresholdPenaltyArray &&
 			isValidDexNft &&
 			isUserPkDefined &&
+			isValidForcedLiquidation &&
 			isValidChildBox &&
 			isValidParentBox &&
 			isValidParamaterBox
