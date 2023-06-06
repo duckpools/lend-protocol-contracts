@@ -2,11 +2,13 @@
 {
 	val PoolNft                = fromBase58("CemYwVWXuAbZu1qvJ313DQrN3tuvCmD3svcsqHfXJzMB")
 	val ParamaterBoxNft = fromBase58("9M8VueZ5srjdUmi9T2sfkHCZfQPabFbr6EkEiBfP7LWn")
-	val InterestDenomination     = 1000000
+	val InterestDenomination     = 1000000000L
 	val CoefficientDenomination = 100
 	val InitiallyLockedLP      = 9000000000000000L
 	val MaximumBorrowTokens        = 9000000000000000L
 	val MaximumHistoryHeight = 5
+	val MaximumExecutionFee = 2000000
+	val updateFrequency = 7
 
 	val successor = OUTPUTS(0)
 	val pool      = CONTEXT.dataInputs(0)
@@ -21,24 +23,24 @@
 
 	// get coefficients
 	val coefficients = parameterBox.R4[Coll[Long]].get
-	val a = coefficients(0)
-	val b = coefficients(1)
-	val c = coefficients(2)
-	val d = coefficients(3)
-	val e = coefficients(4)
-	val f = coefficients(5)
+	val a = coefficients(0).toBigInt
+	val b = coefficients(1).toBigInt
+	val c = coefficients(2).toBigInt
+	val d = coefficients(3).toBigInt
+	val e = coefficients(4).toBigInt
+	val f = coefficients(5).toBigInt
 	 
 	val deltaHeight      = HEIGHT - recordedHeight
-	val isReadyToUpdate = deltaHeight >= 7 // About 12 hours
+	val isReadyToUpdate = deltaHeight >= updateFrequency // About 12 hours
 
 	val deltaFinalHeight      = finalHeight - HEIGHT
 	val validDeltaFinalHeight = (deltaFinalHeight >= 0 && deltaFinalHeight <= 30)
 	val borrowed    = MaximumBorrowTokens - pool.tokens(2)._2
-	val util        = InterestDenomination * borrowed / (pool.value + borrowed)
+	val util        = (InterestDenomination.toBigInt * borrowed.toBigInt / (pool.value.toBigInt + borrowed.toBigInt)).toLong
 
-	val D = CoefficientDenomination
+	val D = CoefficientDenomination.toBigInt
 	val M = InterestDenomination
-	val x = util
+	val x = util.toBigInt
 
 	val currentRate = (
 		M + (
@@ -48,10 +50,10 @@
 			(d * x) / D * x / M * x / M +
 			(e * x) / D * x / M * x / M * x / M + 
 			(f * x) / D * x / M * x / M * x / M * x / M
-			)
+			).toLong
 		) 
 
-	val retainedERG          = successor.value >= SELF.value
+	val retainedERG          = successor.value >= SELF.value - MaximumExecutionFee
 	val preservedInterestNFT = successor.tokens == SELF.tokens
 
 	val validSuccessorScript = SELF.propositionBytes == successor.propositionBytes
@@ -65,7 +67,7 @@
 
 	sigmaProp(
 		isReadyToUpdate &&
-		underMaxHeight &&
+		isUnderMaxHeight &&
 		validSuccessorScript &&
 		retainedERG &&
 		preservedInterestNFT &&
