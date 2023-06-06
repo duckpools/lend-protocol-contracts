@@ -1,10 +1,10 @@
 ```scala
 {
 	// Constants
-	val MaximumMiningFee = 1L
-	val InterestContractDenomination = 1L
-	val MaxHistorySize = 1L
-	val MinimumChildValue = 1L
+	val MaximumExecutionFee = 5000000
+	val ChildExecutionFee = 2000000
+	val InterestContractDenomination = 1000000000L
+	val MaxHistorySize = 5
 
 	// Get current box values
 	val currentScript = SELF.propositionBytes
@@ -26,8 +26,8 @@
 	val headChildScript = headChild.propositionBytes
 	val headChildToken = headChild.tokens(0)
 	val headInterestHistory = headChild.R4[Coll[Long]].get
-	val headIndex = headChild.R5[Long].get
-	val headChildHeight = headChild.R6[Long].get
+	val headChildHeight = headChild.R5[Long].get
+	val headIndex = headChild.R6[Int].get
 	
 	// Get new child values
 	val newChild = OUTPUTS(1)
@@ -35,28 +35,28 @@
 	val newChildValue = newChild.value
 	val newChildToken = newChild.tokens(0)
 	val newInterestHistory = newChild.R4[Coll[Long]].get
-	val newIndex = newChild.R5[Long].get
-	val newChildHeight = newChild.R6[Long].get
+	val newChildHeight = newChild.R5[Long].get
+	val newIndex = newChild.R6[Int].get
 
 	// Validate successor parent
 	val validSuccessorScript = successorScript == currentScript
-	val validSuccessorValue = successorValue >= currentValue - newChildValue - MaximumMiningFee
-	val retainParentToken = successorParentToken == currentChildTokens
+	val validSuccessorValue = successorValue >= currentValue - MaximumExecutionFee - (MaxHistorySize * ChildExecutionFee)
+	val retainParentToken = successorParentToken == currentParentToken
 	val validChildTokensId = successorChildTokens._1 == currentChildTokens._1 
 	val validChildTokensAmount = successorChildTokens._2 == currentChildTokens._2 - 1
 
 	// Calculate successorInterestHistory
-	val totalInterestAccrued = headInterestHistory.fold(InterestContractDenomination, {(z:Long, base:Long) => z * base / InterestContractDenomination})
+	val totalInterestAccrued = headInterestHistory.fold(InterestContractDenomination, {(z:Long, base:Long) => (z.toBigInt * base.toBigInt / InterestContractDenomination.toBigInt).toLong})
 	val validSuccessorInterestHistory = currentInterestHistory.append(Coll(totalInterestAccrued)) == successorInterestHistory
 	
 	// Validate head child
 	val validHeaderTokenId = headChildToken._1 == currentChildTokens._1
 	val validHeaderIndex = headIndex == currentInterestHistory.size
-	val validHeaderHistorySize = headInterestHistory.size == MaxHistorySize
+	val validHeaderHistorySize = headInterestHistory.size >= MaxHistorySize
 	
 	// Validate new child
 	val validChildScript = newChildScript == headChildScript
-	val validChildValue = newChildValue >= MinimumChildValue
+	val validChildValue = newChildValue >= MaxHistorySize * ChildExecutionFee
 	val validChildToken = newChildToken == headChildToken
 	val validChildIndex = newIndex == successorInterestHistory.size
 	val validChildHistory = newInterestHistory == Coll(InterestContractDenomination)
@@ -77,7 +77,7 @@
 		validChildToken &&
 		validChildIndex &&
 		validChildHistory &&
-		validChildHeight
+		validChildHeight 
 	)
 }
 ```
