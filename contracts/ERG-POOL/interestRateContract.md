@@ -1,14 +1,14 @@
 ```scala
 {
-	val PoolNft                = fromBase58("CemYwVWXuAbZu1qvJ313DQrN3tuvCmD3svcsqHfXJzMB")
-	val ParamaterBoxNft = fromBase58("9M8VueZ5srjdUmi9T2sfkHCZfQPabFbr6EkEiBfP7LWn")
-	val InterestDenomination     = 1000000000L
-	val CoefficientDenomination = 100
+	val PoolNft                = fromBase58("24PGhuwbdzcdCMbtJ88yknnqsqVEMSXecxQ9em1To9B1")
+	val InterestParamaterBoxNft = fromBase58("3bXFW7jUheDFDtSZoovxojcKdcytWhXqmHZsagDqL29Y")
+	val InterestDenomination     = 100000000L
+	val CoefficientDenomination = 100000000L
 	val InitiallyLockedLP      = 9000000000000000L
 	val MaximumBorrowTokens        = 9000000000000000L
-	val MaximumHistoryHeight = 5
+	val MaximumHistoryHeight = 100
 	val MaximumExecutionFee = 2000000
-	val updateFrequency = 7
+	val updateFrequency = 20
 
 	val successor = OUTPUTS(0)
 	val pool      = CONTEXT.dataInputs(0)
@@ -34,12 +34,12 @@
 	val isReadyToUpdate = deltaHeight >= updateFrequency // About 12 hours
 
 	val deltaFinalHeight      = finalHeight - HEIGHT
-	val validDeltaFinalHeight = (deltaFinalHeight >= 0 && deltaFinalHeight <= 30)
+	val validDeltaFinalHeight = (deltaFinalHeight >= 0 && deltaFinalHeight <= 15)
 	val borrowed    = MaximumBorrowTokens - pool.tokens(2)._2
-	val util        = (InterestDenomination.toBigInt * borrowed.toBigInt / (pool.value.toBigInt + borrowed.toBigInt)).toLong
+	val util        = (InterestDenomination.toBigInt * borrowed.toBigInt / (pool.value.toBigInt + borrowed.toBigInt))
 
 	val D = CoefficientDenomination.toBigInt
-	val M = InterestDenomination
+	val M = InterestDenomination.toBigInt
 	val x = util.toBigInt
 
 	val currentRate = (
@@ -50,17 +50,21 @@
 			(d * x) / D * x / M * x / M +
 			(e * x) / D * x / M * x / M * x / M + 
 			(f * x) / D * x / M * x / M * x / M * x / M
-			).toLong
+			)
 		) 
 
 	val retainedERG          = successor.value >= SELF.value - MaximumExecutionFee
 	val preservedInterestNFT = successor.tokens == SELF.tokens
 
 	val validSuccessorScript = SELF.propositionBytes == successor.propositionBytes
-	val validInterestUpdate  = interestHistory.append(Coll(currentRate)) == finalInterestHistory
+	val validInterestUpdate = ( 
+		interestHistory == finalInterestHistory.slice(0, interestHistory.size) &&
+		finalInterestHistory(interestHistory.size).toBigInt == currentRate &&
+		finalInterestHistory.size == interestHistory.size + 1
+	)
 
 	val validPoolBox = pool.tokens(0)._1 == PoolNft
-	val validParameterBox = parameterBox.tokens(0)._1 == ParamaterBoxNft
+	val validParameterBox = parameterBox.tokens(0)._1 == InterestParamaterBoxNft
 
 	val retainIndex = finalChildIndex == childIndex
 	val isUnderMaxHeight = finalInterestHistory.size <= MaximumHistoryHeight
