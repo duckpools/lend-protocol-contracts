@@ -3,8 +3,8 @@
 	// Constants
 	val MaximumExecutionFee = 5000000
 	val ChildExecutionFee = 2000000
-	val InterestContractDenomination = 1000000000L
-	val MaxHistorySize = 5
+	val InterestContractDenomination = 100000000L
+	val MaxHistorySize = 100
 
 	// Get current box values
 	val currentScript = SELF.propositionBytes
@@ -46,8 +46,10 @@
 	val validChildTokensAmount = successorChildTokens._2 == currentChildTokens._2 - 1
 
 	// Calculate successorInterestHistory
-	val totalInterestAccrued = headInterestHistory.fold(InterestContractDenomination, {(z:Long, base:Long) => (z.toBigInt * base.toBigInt / InterestContractDenomination.toBigInt).toLong})
-	val validSuccessorInterestHistory = currentInterestHistory.append(Coll(totalInterestAccrued)) == successorInterestHistory
+	val totalInterestAccrued = headInterestHistory.fold(InterestContractDenomination, {(z:Long, base:Long) => (z * base / InterestContractDenomination)})
+	val validSuccessorInterestHistory = (
+		currentInterestHistory.append(Coll(totalInterestAccrued)) == successorInterestHistory
+	)
 	
 	// Validate head child
 	val validHeaderTokenId = headChildToken._1 == currentChildTokens._1
@@ -77,7 +79,7 @@
 		validChildToken &&
 		validChildIndex &&
 		validChildHistory &&
-		validChildHeight 
+		validChildHeight && true && HEIGHT > 1
 	)
 }
 ```
