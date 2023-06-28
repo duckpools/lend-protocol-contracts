@@ -10,43 +10,46 @@
 	val LiquidationThresholdDenomination = 1000
 	val MinimumBoxValue = 1000000 // Absolute minimum value allowed for pool box.
 	val MinimumTxFee = 1000000L
-	val MinLoanValue = 50000000L
 	val Slippage = 2
 	val DexFeeDenom = 1000
-	val sFeeStepOne = 20000000000L
-	val sFeeStepTwo = 200000000000L
+	val sFeeStepOne = 2000L
+	val sFeeStepTwo = 200000L
 	val sFeeDivisorOne = 160
 	val sFeeDivisorTwo = 200
 	val sFeeDivisorThree = 250
 	val LendTokenMultipler = 1000000000000000L.toBigInt
-	val MaximumNetworkFee = 4000000
 	val forcedLiquidationBuffer = 500000
 
 	// Current pool values
 	val currentScript = SELF.propositionBytes
-	val currentPooledAssets = SELF.value
+	val currentPoolValue = SELF.value
 	val currentPoolNft = SELF.tokens(0)
 	val currentLendTokens = SELF.tokens(1)
 	val currentBorrowTokens = SELF.tokens(2)
+	val currentPooledTokens = SELF.tokens(3)
 	val currentLendTokensCirculating = MaxLendTokens - currentLendTokens._2
 	val currentTotalBorrowed = MaxBorrowTokens - currentBorrowTokens._2
+	val currentPooledAssets = currentPooledTokens._2
 
 	// Successor pool values
 	val successor = OUTPUTS(0)
 	val successorScript = successor.propositionBytes
-	val successorPooledAssets = successor.value
+	val successorPoolValue = successor.value
 	val successorPoolNft = successor.tokens(0)
 	val successorLendTokens = successor.tokens(1)
 	val successorBorrowTokens = successor.tokens(2)
+	val successorPooledTokens = successor.tokens(3)
 	val successorLendTokensCirculating = MaxLendTokens - successorLendTokens._2
 	val successorTotalBorrowed = MaxBorrowTokens - successorBorrowTokens._2
+	val successorPooledAssets = successorPooledTokens._2
 
 	// Validation conditions under all spending paths
 	val isValidSuccessorScript = successorScript == currentScript
 	val isPoolNftPreserved = successorPoolNft == currentPoolNft 
 	val isValidLendTokenId = successorLendTokens._1 == currentLendTokens._1 // Not required when the stronger isLendTokensUnchanged replaces this validation.
 	val isValidBorrowTokenId = successorBorrowTokens._1 == currentBorrowTokens._1 // Not required when the stronger isBorrowTokensUnchanged replaces this validation.
-	val isValidMinValue = successor.value >= MinimumBoxValue // Not required for a deposit since value must be increasing by isAssetsInPoolIncreasing
+	val isValidMinValue = successorPoolValue >= MinimumBoxValue 
+	val isPooledAssetPreserved = successorPooledTokens._1 == currentPooledTokens._1
 
 	// Calculate Lend Token valuation
 	val currentLendTokenValue = LendTokenMultipler * (currentPooledAssets.toBigInt + currentTotalBorrowed.toBigInt) / currentLendTokensCirculating.toBigInt
@@ -66,6 +69,8 @@
 		val serviceFeeBox = OUTPUTS(1)
 		val serviceFeeScript = serviceFeeBox.propositionBytes
 		val serviceFeeValue = serviceFeeBox.value
+		val serviceFeeTokens = serviceFeeBox.tokens(0)
+		val serviceFeeAssets = serviceFeeTokens._2
 		
 		// Extract values form serviceParamBox
 		val serviceParamBox = CONTEXT.dataInputs(0)
@@ -88,7 +93,8 @@
 			
 		// Validate service fee box
 		val validServiceScript = serviceFeeScript == paramServiceFeeScript
-		val validServiceFeeValue = serviceFeeValue >= max(totalServiceFee, MinimumBoxValue)
+		val validServiceFeeValue = serviceFeeValue >= MinimumBoxValue
+		val validServiceTokens = serviceFeeAssets >= max(totalServiceFee, 1L) && serviceFeeTokens._1 == currentPooledTokens._1
 	
 		// Validate serviceParamBox
 		val isValidServiceParamBox = serviceParamNft._1 == ParamaterBoxNft
@@ -97,6 +103,7 @@
 		(
 			validServiceScript &&
 			validServiceFeeValue &&
+			validServiceTokens &&
 			isValidServiceParamBox
 		)
 	} else {
@@ -111,6 +118,7 @@
 		isValidMinValue &&
 		isBorrowTokensUnchanged &&
 		isLendTokenValueMaintained &&
+		isPooledAssetPreserved &&
 		isValidServiceFee
 	)
 
@@ -125,10 +133,12 @@
 	// Validate deposit operation
 	val isValidDeposit = (
 		isValidSuccessorScript &&
+		isValidMinValue &&
 		isPoolNftPreserved &&
 		isLendTokensUnchanged &&
 		isValidBorrowTokenId &&
 		isAssetsInPoolIncreasing &&
+		isPooledAssetPreserved &&
 		isDepositDeltaBorrowedValid
 	)
 
@@ -151,10 +161,12 @@
 		val collateralChildIndex = collateralInterestIndexes(1)
 		
 		// Load Dex pool values
+		val PoolNativeCurrencyId = currentPooledTokens._1
 		val dexBox = CONTEXT.dataInputs(0)
-		val dexReservesErg = dexBox.value
+		val deltaXToken = if (dexBox.tokens(3)._1 == PoolNativeCurrencyId) dexBox.tokens(3) else dexBox.tokens(2)
+		val deltaXAmount = deltaXToken._2
 		val dexNft = dexBox.tokens(0)
-		val dexReservesToken = dexBox.tokens(2)
+		val dexReservesToken = if (dexBox.tokens(3)._1 == PoolNativeCurrencyId) dexBox.tokens(2) else dexBox.tokens(3)
 		val dexFee = dexBox.R4[Int].get
 
 		// Load parent box values
@@ -175,18 +187,20 @@
 		val collateralAssetIds = paramaterBox.R5[Coll[Coll[Byte]]].get
 		val collateralDexNfts = paramaterBox.R6[Coll[Coll[Byte]]].get
 		val liquidationPenalties = paramaterBox.R7[Coll[Long]].get
+		val minimumLoanAmounts = paramaterBox.R9[Coll[Long]].get
 		
 		// Get collateral settings from paramaterBox
 		val indexOfParams = collateralDexNfts.indexOf(dexNft._1, 0)
 		val expectedCollateralId = collateralAssetIds(indexOfParams)
 		val liquidationThreshold = liquidationThresholds(indexOfParams)
 		val liquidationPenalty = liquidationPenalties(indexOfParams)
+		val minimumLoanAmount = minimumLoanAmounts(indexOfParams)
 
 		// Check sufficient collateral
 		val inputAmount = collateralSupplied._2
-		val collateralMarketValue = (dexReservesErg.toBigInt * inputAmount.toBigInt * dexFee.toBigInt) /
+		val collateralMarketValue = (deltaXAmount.toBigInt * inputAmount.toBigInt * dexFee.toBigInt) /
 			((dexReservesToken._2.toBigInt + (dexReservesToken._2.toBigInt * Slippage.toBigInt / 100.toBigInt)) * DexFeeDenom.toBigInt +
-			(inputAmount.toBigInt * dexFee.toBigInt)) - MaximumNetworkFee.toBigInt // Formula from spectrum dex
+			(inputAmount.toBigInt * dexFee.toBigInt)) // Formula from spectrum dex
 		val isCorrectCollateralAmount = collateralMarketValue >= loanAmount.toBigInt * liquidationThreshold.toBigInt / LiquidationThresholdDenomination.toBigInt
 			
 		// Check correct collateral box tokens
@@ -206,17 +220,20 @@
 		// Validate Erg and token values in LendPool and collateralBox
 		val isAssetAmountValid = deltaAssetsInPool * -1 == loanAmount
 		val isTotalBorrowedValid = deltaTotalBorrowed == loanAmount
-		val isSufficientLoanValue = loanAmount >= MinLoanValue // Cover dexFee loss in case of immediate liquidation
+		val isSufficientLoanValue = loanAmount >= minimumLoanAmount // Cover liquidation fees in case of liquidation
 		
 		// Validate other loaded boxes
 		val isValidCollateralContract = blake2b256(collateralScript) == CollateralContractScript
-		val isValidCollateralValue = collateralValue >= MinimumBoxValue + MinimumTxFee// Ensure collateral value sufficient for safety
+		val isValidCollateralValue = collateralValue >= MinimumBoxValue + MinimumBoxValue + MinimumTxFee// Ensure collateral value sufficient for safety
 		val isValidChildBox = childBoxNft._1 == ChildBoxNft && childIndex == parentInterestHistory.size
 		val isValidParentBox = parentBoxNft._1 == ParentBoxNft
 		val isValidParamaterBox = paramaterNft._1 == ParamaterBoxNft
 		
 		// Ensure asset reduction occurs
 		val isAssetsInPoolDecreasing = deltaAssetsInPool < 0
+		
+		// Check dex box calculation using pooled token
+		val isValidBaseToken = deltaXToken._1 == currentPooledTokens._1
 
 		// Validate borrow operation
 		val isValidBorrow = (
@@ -226,6 +243,7 @@
 			isValidMinValue &&
 			isPoolNftPreserved &&
 			isLendTokensUnchanged &&
+			isPooledAssetPreserved &&
 			isValidBorrowTokenId &&
 			isTotalBorrowedValid &&
 			isValidCollateralContract &&
@@ -238,6 +256,7 @@
 			isValidParentIndex &&
 			isValidThresholdPenaltyArray &&
 			isValidDexNft &&
+			isValidBaseToken &&
 			isUserPkDefined &&
 			isValidForcedLiquidation &&
 			isValidChildBox &&
@@ -249,3 +268,4 @@
 		sigmaProp(isValidDeposit || isValidExchange)
 	}
 }
+```
