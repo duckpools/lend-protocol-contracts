@@ -1,4 +1,4 @@
-``scala 
+```scala 
 {
 	val minTxFee      = 1000000L
 	val minBoxValue   = 1000000L
@@ -7,35 +7,41 @@
 	val requestAmount = SELF.R5[Long].get
 	val publicRefund  = SELF.R6[Long].get
 	
-	val successor = OUTPUTS(1)
+	if (OUTPUTS.size < 3) {
+		val refundSuccessor = OUTPUTS(0)
+		val deltaErg = SELF.value - refundSuccessor.value
+		
+		val validRefundSuccessor = refundSuccessor.propositionBytes == user
+		val validDeltaErg = deltaErg <= minTxFee
+		val validHeight   = HEIGHT >= publicRefund
+		val multiBoxSafetyRefund =  if (refundSuccessor.R4[Coll[Byte]].isDefined) refundSuccessor.R4[Coll[Byte]].get == SELF.id else false
+		val validTokens = if(refundSuccessor.tokens.size != 0) refundSuccessor.tokens(0) == SELF.tokens(0) else false
 	
-	val validSuccessorScript = successor.propositionBytes == user
+		
+		// Refund conditions
+		val refund = (
+			validRefundSuccessor &&
+			validDeltaErg &&
+			multiBoxSafetyRefund &&
+			validHeight &&
+			validTokens && true && true && true
+		)
+		refund
 	
-	val validValue = successor.value >= requestAmount
-
-	val multiBoxSpendSafety = successor.R7[Coll[Byte]].get == SELF.id
-	
-	val exchange = (
-		validSuccessorScript &&
-		validValue &&
-		multiBoxSpendSafety && true && true
-	)
-	
-	val deltaErg = SELF.value - successor.value
-	
-	val validDeltaErg = deltaErg <= minTxFee + minBoxValue
-	val validHeight   = HEIGHT >= publicRefund
-	
-	val validTokens = if(successor.tokens.size != 0) {successor.tokens(0)._1 == SELF.tokens(0)._1 && successor.tokens(0)._2 == SELF.tokens(0)._2} else {false}
-	
-	val refund = (
-		validSuccessorScript &&
-		validDeltaErg &&
-		multiBoxSpendSafety &&
-		validHeight &&
-		validTokens
-	)
-	
-	sigmaProp(exchange || refund) 
+	} else {
+		// Withdrawal conditions
+		val successor = OUTPUTS(2)
+		
+		val validSuccessorScript = successor.propositionBytes == user		
+		val validValue = successor.value >= requestAmount
+		val multiBoxSpendSafety = if (successor.R7[Coll[Byte]].isDefined) successor.R7[Coll[Byte]].get == SELF.id else false
+		
+		val exchange = (
+			validSuccessorScript &&
+			validValue &&
+			multiBoxSpendSafety 
+		)
+		exchange	
+	}
 }
 ```
