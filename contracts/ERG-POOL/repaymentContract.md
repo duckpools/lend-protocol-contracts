@@ -3,7 +3,7 @@
 	// Constants
 	val transactionFee = 1000000L 
 	val MaxBorrowTokens = 9000000000000000L // Maximum allowed borrowable tokens
-	val PoolNft = fromBase58("CemYwVWXuAbZu1qvJ313DQrN3tuvCmD3svcsqHfXJzMB") // Non-fungible token for the pool
+	val PoolNft = fromBase58("24PGhuwbdzcdCMbtJ88yknnqsqVEMSXecxQ9em1To9B1") // Non-fungible token for the pool
 	
 	val initalPool = INPUTS(0)
 	val finalPool = OUTPUTS(0)
@@ -28,8 +28,8 @@
 	// Check if the delta between borrowed amounts is equal to the loan amount
 	val validBorrowed = deltaBorrowed == loanAmount
 	
-	// Check if the number of input boxes is exactly 2, to prevent unintended multiple box spends
-	val multiBoxSpendSafety = INPUTS.size == 2
+	// Check that SELF is INPUTS(1) to prevent same box attack
+	val multiBoxSpendSafety = INPUTS(1) == SELF
 	
 	// Combine all the conditions into a single Sigma proposition
 	sigmaProp(
@@ -39,5 +39,5 @@
 		validBorrowed &&
 		multiBoxSpendSafety
 	)
-)
+}
 ```
