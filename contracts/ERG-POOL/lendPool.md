@@ -1,13 +1,13 @@
 ```scala
 {
 	// Constants
-	val CollateralContractScript = fromBase58("JCDEqzXJYbiRyut9amJSvt1uebWRwqtUSMmqYyUn9x3A")
-	val ChildBoxNft = fromBase58("3kMqXDumdsgdL1P1b3L3xDWe2tiLhW8uz8YoL8ano9Au")
-	val ParamaterBoxNft = fromBase58("9M8VueZ5srjdUmi9T2sfkHCZfQPabFbr6EkEiBfP7LWn")
-	val ParentBoxNft = fromBase58("2wGNGhTcrgRJRgBoQfdPiaT4Wvwx2FtDoqmtkJwWCXXj")
+	val CollateralContractScript = fromBase58("5uLGJmcRuKFS7WrXd1K68TyLb6AbaMffdJKW6MvqKzi6")
+	val ChildBoxNft = fromBase58("8FfPh3nDuPAPVQmVt58oxtxdPz4XCrHKtFuoFFpZLjKm")
+	val ParamaterBoxNft = fromBase58("DM6yVvvNTARUwGUDr5XjD8s39ZxeQ7rhFcrocUevR6Ns")
+	val ParentBoxNft = fromBase58("25qcSJ7XVwFWtoUG6zT6y1gL7Gq2cVwjPEZsDU1TiwLK")
 	val MaxLendTokens = 9000000001000000L // Set 1,000,000 higher than true maximum so that genesis lend token value is 1.
 	val MaxBorrowTokens = 9000000000000000L
-	val LiquidationThresholdDenomination = 10
+	val LiquidationThresholdDenomination = 1000
 	val MinimumBoxValue = 1000000 // Absolute minimum value allowed for pool box.
 	val MinimumTxFee = 1000000L
 	val MinLoanValue = 50000000L
@@ -133,7 +133,7 @@
 	)
 
 	// Check for loans
-	if (CONTEXT.dataInputs.size > 0) {
+	if (CONTEXT.dataInputs.size > 1) {
 		// Load Collateral Box Values
 		val collateralBox = OUTPUTS(1)
 		val collateralScript = collateralBox.propositionBytes
@@ -184,10 +184,10 @@
 
 		// Check sufficient collateral
 		val inputAmount = collateralSupplied._2
-		val collateralMarketValue = (dexReservesErg * inputAmount * dexFee) /
-			((dexReservesToken._2 + (dexReservesToken._2 * Slippage / 100)) * DexFeeDenom +
-			(inputAmount * dexFee)) - MaximumNetworkFee // Formula from spectrum dex
-		val isCorrectCollateralAmount = collateralMarketValue >= loanAmount * liquidationThreshold / LiquidationThresholdDenomination
+		val collateralMarketValue = (dexReservesErg.toBigInt * inputAmount.toBigInt * dexFee.toBigInt) /
+			((dexReservesToken._2.toBigInt + (dexReservesToken._2.toBigInt * Slippage.toBigInt / 100.toBigInt)) * DexFeeDenom.toBigInt +
+			(inputAmount.toBigInt * dexFee.toBigInt)) - MaximumNetworkFee.toBigInt // Formula from spectrum dex
+		val isCorrectCollateralAmount = collateralMarketValue >= loanAmount.toBigInt * liquidationThreshold.toBigInt / LiquidationThresholdDenomination.toBigInt
 			
 		// Check correct collateral box tokens
 		val isValidCollateralId = (dexReservesToken._1 == collateralSupplied._1) && (collateralSupplied._1 == expectedCollateralId)
@@ -214,11 +214,15 @@
 		val isValidChildBox = childBoxNft._1 == ChildBoxNft && childIndex == parentInterestHistory.size
 		val isValidParentBox = parentBoxNft._1 == ParentBoxNft
 		val isValidParamaterBox = paramaterNft._1 == ParamaterBoxNft
+		
+		// Ensure asset reduction occurs
+		val isAssetsInPoolDecreasing = deltaAssetsInPool < 0
 
 		// Validate borrow operation
 		val isValidBorrow = (
 			isValidSuccessorScript &&
 			isAssetAmountValid &&
+			isAssetsInPoolDecreasing &&
 			isValidMinValue &&
 			isPoolNftPreserved &&
 			isLendTokensUnchanged &&
