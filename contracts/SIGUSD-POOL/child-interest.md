@@ -1,7 +1,7 @@
 ```scala
 {
-	val PoolNft                = fromBase58("24PGhuwbdzcdCMbtJ88yknnqsqVEMSXecxQ9em1To9B1")
-	val InterestParamaterBoxNft = fromBase58("3bXFW7jUheDFDtSZoovxojcKdcytWhXqmHZsagDqL29Y")
+	val PoolNft                = fromBase58("UiocPX2UskC22zEyjduKAtm7XLWrfhDXn2KZrgAGbga")
+	val InterestParamaterBoxNft = fromBase58("5L4zTScZwqU5UUfibyPKgCXdSLEELKm87CEqqi217yhs")
 	val InterestDenomination     = 100000000L
 	val CoefficientDenomination = 100000000L
 	val InitiallyLockedLP      = 9000000000000000L
@@ -33,10 +33,11 @@
 	val deltaHeight      = HEIGHT - recordedHeight
 	val isReadyToUpdate = deltaHeight >= updateFrequency // About 12 hours
 
+	val poolAssets = pool.tokens(3)._2
 	val deltaFinalHeight      = finalHeight - HEIGHT
 	val validDeltaFinalHeight = (deltaFinalHeight >= 0 && deltaFinalHeight <= 15)
 	val borrowed    = MaximumBorrowTokens - pool.tokens(2)._2
-	val util        = (InterestDenomination.toBigInt * borrowed.toBigInt / (pool.value.toBigInt + borrowed.toBigInt))
+	val util        = (InterestDenomination.toBigInt * borrowed.toBigInt / (poolAssets.toBigInt + borrowed.toBigInt))
 
 	val D = CoefficientDenomination.toBigInt
 	val M = InterestDenomination.toBigInt
