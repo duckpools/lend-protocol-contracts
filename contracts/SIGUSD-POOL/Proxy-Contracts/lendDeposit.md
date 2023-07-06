@@ -1,13 +1,12 @@
 ```scala
 {
-	val lendPoolToken = fromBase58("13Sg6DCdibigKGQnYzBxZtyXRt8W5K5wqY9LTgSzmEhH")
 	val minTxFee      = 1000000L
 	val minBoxValue   = 1000000L
 	
 	val user          = SELF.R4[Coll[Byte]].get
 	val requestAmount = SELF.R5[Long].get
 	val publicRefund  = SELF.R6[Long].get
-	
+	val lendPoolToken = SELF.R7[Coll[Byte]].get
 	
 	if (OUTPUTS.size < 3) {
 		val refundBox = OUTPUTS(0)
