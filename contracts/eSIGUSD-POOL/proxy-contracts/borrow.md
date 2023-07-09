@@ -1,10 +1,11 @@
 ```scala
 {
-	val collateralBoxScript  = fromBase58("5uLGJmcRuKFS7WrXd1K68TyLb6AbaMffdJKW6MvqKzi6")
+	val collateralBoxScript  = fromBase58("AvQwzBRAmkVN2ZutWdJFuKZLWDLjuWjpzokiKTduRudJ")
 	val minTxFee      = 1000000L
 	val minBoxValue   = 1000000L
-	val poolNFT       = fromBase58("24PGhuwbdzcdCMbtJ88yknnqsqVEMSXecxQ9em1To9B1")
- 	val BorrowTokenId = fromBase58("CECysj7CUU6RRraKcTpYZ1k13ge4LrteKm6CvZ5rimzT")
+	val poolNFT       = fromBase58("UiocPX2UskC22zEyjduKAtm7XLWrfhDXn2KZrgAGbga")
+ 	val BorrowTokenId = fromBase58("3cQ55aqQ32EeyUnFVmptwt4uUKKQ3EuR4DbrS1nRAciy")
+	val PoolNativeCurrency = fromBase58("GYATox71P9XAERmzoDdTGELa62f5ALyjxJLRSfJfKsh")
 	
 	val user          = SELF.R4[Coll[Byte]].get
 	val requestAmount = SELF.R5[Long].get
@@ -21,14 +22,12 @@
 		val multiBoxSpendRefund = refundBox.R4[Coll[Byte]].get == SELF.id
 		val validDeltaErg = deltaErg <= minTxFee
 		val validHeight   = HEIGHT >= publicRefund		
-		val validTokens = if(refundBox.tokens.size != 0) refundBox.tokens(0) == SELF.tokens(0) else false
 		
 		val refund = (
 			validRefundRecipient  &&
 			validDeltaErg &&
 			multiBoxSpendRefund &&
-			validHeight &&
-			validTokens 
+			validHeight 
 		)
 		refund	
 	} else {
@@ -37,8 +36,8 @@
 		val userBox       = OUTPUTS(2)
 		
 		val collateralTokens = collateralBox.tokens
-		val collateral = collateralTokens(0)
-		val collateralBorrowTokens = collateralBox.tokens(1)
+		val collateral = collateralBox.value
+		val collateralBorrowTokens = collateralBox.tokens(0)
 		val recordedBorrower = collateralBox.R4[Coll[Byte]].get
 		val indexes = collateralBox.R5[(Int, Int)].get
 		val thresholdPenalty = collateralBox.R6[(Long, Long)].get
@@ -49,8 +48,13 @@
 		val loanAmount = collateralBorrowTokens._2
 		
 		val validCollateralBoxScript = blake2b256(collateralBox.propositionBytes) == collateralBoxScript
-		val validCollateralTokens = collateral == SELF.tokens(0)
-		val validLoanAmount = loanAmount == userBox.value && collateralBorrowTokens._1 == BorrowTokenId
+		val validCollateralTokens = collateral == SELF.value - minBoxValue - minTxFee
+		val validLoanAmount = (
+			loanAmount == userBox.tokens(0)._2 &&
+			collateralBorrowTokens._1 == BorrowTokenId &&
+			userBox.tokens(0)._1 == PoolNativeCurrency
+			)
+		
 		val validBorrower = collateralBox.R4[Coll[Byte]].get == user
 		val validThresholdPenalty = userThresholdPenalty == thresholdPenalty
 		val validDexNFT = userDexNft == dexNft
@@ -60,7 +64,7 @@
 		val validInterestIndex = INPUTS(0).tokens(0)._1 == poolNFT // enforced by pool contract
 		
 		val validUserScript = userBox.propositionBytes == user
-		val validUserValue = userBox.value == requestAmount	
+		val validUserLoanAmount = userBox.tokens(0)._2 == requestAmount	
 		val multiBoxSpendSafety = userBox.R4[Coll[Byte]].get == SELF.id
 		
 		val exchange = (
@@ -74,7 +78,7 @@
 			validUserPk &&
 			validForcedLiquidation &&
 			validInterestIndex &&
-			validUserValue && 
+			validUserLoanAmount && 
 			multiBoxSpendSafety
 		)
 		exchange
