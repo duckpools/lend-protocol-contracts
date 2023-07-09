@@ -4,7 +4,7 @@
 	val MinTxFee = 1000000L
 	
 	// Extract values from SELF
-	val partialRepayment = SELF.value
+	val partialRepayment = SELF.tokens(0)._2
 	val collateralBoxId = SELF.R4[Coll[Byte]].get
 	val finalBorrowTokens = SELF.R5[Long].get
 	val userScript = SELF.R6[Coll[Byte]].get
@@ -15,12 +15,14 @@
 		val refundBox = OUTPUTS(0)
 		
 		val validBorrowerScript = refundBox.propositionBytes == userScript
-		val validRefundValue = refundBox.value >= partialRepayment - MinTxFee
+		val validRefundValue = refundBox.value >= SELF.value - MinTxFee
+		val validTokensRefunded = refundBox.tokens == SELF.tokens
 		
 		val refund = (
 			validBorrowerScript &&
 			validRefundValue &&
-			HEIGHT >= refundHeight && true
+			validTokensRefunded &&
+			HEIGHT >= refundHeight
 		)
 		refund
 	} else {
@@ -28,9 +30,8 @@
 		// Extract values from collateral box
 		val currentCollateralBox = INPUTS(1)
 		val currentScript = currentCollateralBox.propositionBytes
-		val currentCollateral = currentCollateralBox.tokens(0)
 		val currentValue = currentCollateralBox.value
-		val currentBorrowTokens = currentCollateralBox.tokens(1)
+		val currentBorrowTokens = currentCollateralBox.tokens(0)
 		val currentBorrower = currentCollateralBox.R4[Coll[Byte]].get
 		val currentIndexes = currentCollateralBox.R5[(Int, Int)].get
 		val currentThresholdPenalty = currentCollateralBox.R6[(Long, Long)].get
@@ -42,9 +43,8 @@
 		// Extract values from final collateral box
 		val successorCollateralBox = OUTPUTS(0)
 		val successorScript = successorCollateralBox.propositionBytes
-		val successorCollateral = successorCollateralBox.tokens(0)
 		val successorValue = successorCollateralBox.value
-		val successorBorrowTokens = successorCollateralBox.tokens(1)
+		val successorBorrowTokens = successorCollateralBox.tokens(0)
 		val successorBorrower = successorCollateralBox.R4[Coll[Byte]].get
 		val successorIndexes = successorCollateralBox.R5[(Int, Int)].get
 		val successorThresholdPenalty = successorCollateralBox.R6[(Long, Long)].get
@@ -59,7 +59,6 @@
 		// Validate successor collateral box
 		val validSuccessorScript = successorScript == currentScript
 		val retainMinValue = successorValue >= currentValue
-		val retainCollateral = successorCollateral == currentCollateral
 		val retainBorrowTokenId = successorBorrowTokens._1 == currentBorrowTokens._1
 		val validBorrowTokens = successorBorrowTokens._2 == finalBorrowTokens
 		val retainRegisters = (
@@ -75,7 +74,6 @@
 			validSuccessorScript &&
 			validInputCollateral &&
 			retainMinValue &&
-			retainCollateral &&
 			retainBorrowTokenId &&
 			validBorrowTokens &&
 			retainRegisters && true && true && true
