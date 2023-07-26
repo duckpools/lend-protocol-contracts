@@ -1,11 +1,12 @@
 ```scala
 {
 	// Constants
-	val RepaymentContractScript = fromBase58("vhzqUqCdxJZX7y2QhksezQGLATWCzhUMX3GvCfSXXLe")
-	val ChildInterestNft = fromBase58("8FfPh3nDuPAPVQmVt58oxtxdPz4XCrHKtFuoFFpZLjKm")
-	val ParentInterestNft = fromBase58("25qcSJ7XVwFWtoUG6zT6y1gL7Gq2cVwjPEZsDU1TiwLK")
+	val RepaymentContractScript = fromBase58("D5dHzjUQg9zc8qYjQ2mjcC7BHyP3FUX2JYPEfK4wCg1k")
+	val ChildInterestNft = fromBase58("6GMDJHmGhjyZw5uKQwjKYESiTMFi83EbYbMA6sUEJ7fV")
+	val ParentInterestNft = fromBase58("AX5fHB4iAmJZsqHxXY9isp9FSLWp13GeEd584bWSyAwk")
+	val PoolCurrencyId = fromBase58("GYATox71P9XAERmzoDdTGELa62f5ALyjxJLRSfJfKsh")
 	val InterestRateDenom = 100000000L
-	val MaximumNetworkFee = 4000000
+	val MaximumNetworkFee = 5000000
 	val DexLpTaxDenomination = 1000 
 	val LiquidationThresholdDenom = 1000
 	val PenaltyDenom = 1000
@@ -15,9 +16,8 @@
 
 	// Extract variables from SELF
 	val currentScript = SELF.propositionBytes
-	val currentCollateral = SELF.tokens(0)
 	val currentValue = SELF.value
-	val currentBorrowTokens = SELF.tokens(1)
+	val currentBorrowTokens = SELF.tokens(0)
 	val currentBorrower = SELF.R4[Coll[Byte]].get
 	val currentIndexes = SELF.R5[(Int, Int)].get
 	val currentThresholdPenalty = SELF.R6[(Long, Long)].get
@@ -89,8 +89,7 @@
 		val successor = OUTPUTS(0)
 		val successorScript = successor.propositionBytes
 		val successorValue = successor.value
-		val successorCollateral = successor.tokens(0)
-		val successorBorrowTokens = successor.tokens(1)
+		val successorBorrowTokens = successor.tokens(0)
 		val successorBorrower = successor.R4[Coll[Byte]].get
 		val successorIndexes = successor.R5[(Int, Int)].get
 		val successorThresholdPenalty = successor.R6[(Long, Long)].get
@@ -103,19 +102,17 @@
 		val dexReservesErg = dexBox.value
 		val dexNft = dexBox.tokens(0)
 		val dexReservesToken = dexBox.tokens(2)._2
-		val inputAmount = successorCollateral._2
-		val dexFee = dexBox.R4[Int].get
-		val collateralValue = (dexReservesErg.toBigInt * inputAmount.toBigInt * dexFee.toBigInt) /
-		((dexReservesToken.toBigInt + (dexReservesToken.toBigInt * Slippage.toBigInt / 100.toBigInt)) * DexLpTaxDenomination.toBigInt +
-		(inputAmount.toBigInt * dexFee.toBigInt )) - MaximumNetworkFee.toBigInt // Formula from spectrum dex
+		val inputAmount = successorValue - MaximumNetworkFee.toBigInt 
+		val dexFee = dexBox.R4[Int].get		
+		val collateralValue = (dexReservesToken.toBigInt * inputAmount.toBigInt * dexFee.toBigInt) /
+		((dexReservesErg.toBigInt + (dexReservesErg.toBigInt * Slippage.toBigInt / 100.toBigInt)) * DexLpTaxDenomination.toBigInt +
+		(inputAmount.toBigInt * dexFee.toBigInt)) 
 
 		// Validate dexBox
 		val validDexBox = dexNft._1 == currentDexNft
 
 		// Validate successor collateral box
 		val validSuccessorScript = successorScript == currentScript
-		val retainMinValue = successorValue >= currentValue
-		val retainCollateralType = successorCollateral._1 == currentCollateral._1
 		val retainBorrowTokens = successorBorrowTokens == currentBorrowTokens
 		val retainRegisters = (
 			successorBorrower == currentBorrower &&
@@ -132,8 +129,6 @@
 		proveDlog(currentUserPk) && 
 		sigmaProp(
 			validSuccessorScript &&
-			retainMinValue &&
-			retainCollateralType &&
 			isCorrectCollateralAmount &&
 			retainBorrowTokens &&
 			retainRegisters &&	
@@ -148,43 +143,44 @@
 		val borrowerBox = OUTPUTS(0) // In liquidations OUTPUTS(0) is assumed to be DEX box
 		val borrowerScript = borrowerBox.propositionBytes
 		val borrowerValue = borrowerBox.value
-		val collateralReceived = borrowerBox.tokens(0)
 		
 		// Extract values from repayment box
 		val repaymentBox = OUTPUTS(1)
 		val repaymentScript = repaymentBox.propositionBytes
 		val repaymentValue = repaymentBox.value
 		val repaymentBorrowTokens = repaymentBox.tokens(0)
+		val repaymentLoanTokens = repaymentBox.tokens(1)
 		
 		// Validate borrower's box
 		val validBorrowerScript = borrowerScript == currentBorrower
-		val validBorrowerTokens = collateralReceived == currentCollateral
+		val validBorrowerCollateral = borrowerValue >= currentValue - MinimumTransactionFee
 
 		// Validate repayment
 		val validRepaymentScript = blake2b256(repaymentScript) == RepaymentContractScript
-		val validRepaymentValue = repaymentValue >= totalOwed + MinimumTransactionFee
+		val validRepaymentValue = repaymentValue >= MinimumBoxValue + MinimumTransactionFee
+		val validRepaymentLoanTokens = repaymentLoanTokens._1 == PoolCurrencyId && repaymentLoanTokens._2 > totalOwed
 		val validRecordOfLoan = repaymentBorrowTokens == currentBorrowTokens 
 
 		// Check repayment conditions
 		val repayment = (
 			validBorrowerScript &&
-			validBorrowerTokens &&
+			validBorrowerCollateral &&
 			validRepaymentScript &&
 			validRepaymentValue &&
+			validRepaymentLoanTokens &&
 			validRecordOfLoan &&
 			validBaseChildNft &&
 			validBaseChildIndex &&
 			validParentNft &&
 			validHeadChild 
 		)
-		val partialRepayment = if (OUTPUTS(0).tokens.size >= 2 && INPUTS(0).tokens.size < 3) {
+		val partialRepayment = if (OUTPUTS(0).tokens.size >= 1 && INPUTS(0).tokens.size < 3) {
 			// Partial Repay
 			// Extract values form successor
 			val successor = OUTPUTS(0)
 			val successorScript = successor.propositionBytes
 			val successorValue = successor.value
-			val successorCollateral = successor.tokens(0)
-			val successorBorrowTokens = successor.tokens(1)
+			val successorBorrowTokens = successor.tokens(0)
 			val successorBorrower = successor.R4[Coll[Byte]].get
 			val successorIndexes = successor.R5[(Int, Int)].get
 			val successorThresholdPenalty = successor.R6[(Long, Long)].get
@@ -197,11 +193,11 @@
 			val dexReservesErg = dexBox.value
 			val dexNft = dexBox.tokens(0)
 			val dexReservesToken = dexBox.tokens(2)._2
-			val inputAmount = successorCollateral._2
-			val dexFee = dexBox.R4[Int].get
-			val collateralValue = (dexReservesErg.toBigInt * inputAmount.toBigInt * dexFee.toBigInt) /
-			((dexReservesToken.toBigInt + (dexReservesToken.toBigInt * Slippage.toBigInt / 100.toBigInt)) * DexLpTaxDenomination.toBigInt +
-			(inputAmount.toBigInt * dexFee.toBigInt )) - MaximumNetworkFee.toBigInt // Formula from spectrum dex
+			val inputAmount = successorValue - MaximumNetworkFee.toBigInt 
+			val dexFee = dexBox.R4[Int].get		
+			val collateralValue = (dexReservesToken.toBigInt * inputAmount.toBigInt * dexFee.toBigInt) /
+			((dexReservesErg.toBigInt + (dexReservesErg.toBigInt * Slippage.toBigInt / 100.toBigInt)) * DexLpTaxDenomination.toBigInt +
+			(inputAmount.toBigInt * dexFee.toBigInt)) 
 
 			// Validate dexBox
 			val validDexBox = dexNft._1 == currentDexNft
@@ -212,13 +208,13 @@
 			val isSufficientCollateral = collateralValue >= finalTotalOwed.toBigInt * liquidationThreshold.toBigInt / LiquidationThresholdDenom.toBigInt
 			
 			// Calculate expected borrowTokens
-			val repaymentMade = repaymentValue - MinimumTransactionFee	
+			val repaymentMade = repaymentLoanTokens._2			
 			val expectedBorrowTokens = currentBorrowTokens._2.toBigInt - (repaymentMade.toBigInt * InterestRateDenom.toBigInt / compoundedInterest.toBigInt)
-				
+			val validRepayLoanTokenId = repaymentLoanTokens._1 == PoolCurrencyId
+			
 			// Validate successor values
 			val validSuccessorScript = successorScript == currentScript
 			val retainMinValue = successorValue >= currentValue
-			val retainCollateral = successorCollateral == currentCollateral
 			val retainBorrowTokenId = successorBorrowTokens._1 == currentBorrowTokens._1
 			val validBorrowTokens = successorBorrowTokens._2.toBigInt >= expectedBorrowTokens
 			val retainRegisters = (
@@ -240,11 +236,12 @@
 			(
 				validSuccessorScript &&
 				retainMinValue &&
-				retainCollateral &&
 				retainBorrowTokenId &&
 				validBorrowTokens &&
 				retainRegisters &&
 				validRepaymentScript &&
+				validRepaymentValue &&
+				validRepayLoanTokenId &&
 				validPartialRecordOfLoan &&
 				validBaseChildNft &&
 				validBaseChildIndex &&
@@ -263,11 +260,11 @@
 			val dexBox = INPUTS(0)
 			val dexReservesErg = dexBox.value
 			val dexReservesToken = dexBox.tokens(2)._2
-			val inputAmount = currentCollateral._2
-			val dexFee = dexBox.R4[Int].get
-			val collateralValue = (dexReservesErg.toBigInt * inputAmount.toBigInt * dexFee.toBigInt) /
-			((dexReservesToken.toBigInt + (dexReservesToken.toBigInt * Slippage.toBigInt / 100.toBigInt)) * DexLpTaxDenomination.toBigInt +
-			(inputAmount.toBigInt * dexFee.toBigInt)) - MaximumNetworkFee.toBigInt // Formula from spectrum dex
+			val inputAmount = currentValue - MaximumNetworkFee.toBigInt 
+			val dexFee = dexBox.R4[Int].get		
+			val collateralValue = (dexReservesToken.toBigInt * inputAmount.toBigInt * dexFee.toBigInt) /
+			((dexReservesErg.toBigInt + (dexReservesErg.toBigInt * Slippage.toBigInt / 100.toBigInt)) * DexLpTaxDenomination.toBigInt +
+			(inputAmount.toBigInt * dexFee.toBigInt)) 
 		
 			// Validate DEX box
 			val validDexBox = dexBox.tokens(0)._1 == currentDexNft
@@ -278,22 +275,28 @@
 				HEIGHT > currentForcedLiquidation
 			)
 			
+			val repaymentAmount = repaymentLoanTokens._2
+			val validRepayLoanTokenId = repaymentLoanTokens._1 == PoolCurrencyId
+			
 			// Apply penalty on repayment and borrower share
 			val borrowerShare = ((collateralValue - totalOwed.toBigInt) * (PenaltyDenom.toBigInt - liquidationPenalty.toBigInt)) / PenaltyDenom.toBigInt
-			val applyPenalty = if (borrowerShare < MinimumBoxValue.toBigInt) {
-				repaymentValue.toBigInt >= collateralValue
+			val applyPenalty = if (borrowerShare < 1.toBigInt) {
+				repaymentAmount.toBigInt >= collateralValue
 			} else {
-				val validRepayment = repaymentValue.toBigInt >= totalOwed.toBigInt + ((collateralValue - totalOwed.toBigInt) * liquidationPenalty.toBigInt / PenaltyDenom.toBigInt)
+				val validRepayment = repaymentAmount.toBigInt >= totalOwed.toBigInt + ((collateralValue - totalOwed.toBigInt) * liquidationPenalty.toBigInt / PenaltyDenom.toBigInt)
 				val borrowBox = OUTPUTS(2)
-				val validBorrowerShare = borrowBox.value.toBigInt >= borrowerShare
+				val validBorrowerShare = borrowBox.tokens(0)._2.toBigInt >= borrowerShare
+				val validBorrowerShareId = borrowBox.tokens(0)._1 == PoolCurrencyId
 				val validBorrowerAddress = borrowBox.propositionBytes == currentBorrower
-				validRepayment && validBorrowerShare && validBorrowerAddress
+				validRepayment && validBorrowerShare && validBorrowerAddress && validBorrowerShareId
 			}   
 
 			// Apply liquidation validations
 			(
 				liquidationAllowed &&
 				validRepaymentScript &&
+				validRepayLoanTokenId &&
+				validRepaymentValue &&
 				applyPenalty &&
 				validRecordOfLoan &&
 				validDexBox &&
