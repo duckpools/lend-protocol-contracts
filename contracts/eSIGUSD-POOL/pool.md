@@ -1,10 +1,10 @@
 ```scala
 {
 	// Constants
-	val CollateralContractScript = fromBase58("5uLGJmcRuKFS7WrXd1K68TyLb6AbaMffdJKW6MvqKzi6")
-	val ChildBoxNft = fromBase58("4JQN1RE5H6ZpHenSTL71eNEFeadZb4bQbxWCjjr8rDs4")
+	val CollateralContractScript = fromBase58("5khdavNWxHPn2wLdeSNHPiuaeUUBgXnFVH3urhtSVZxo")
+	val ChildBoxNft = fromBase58("6GMDJHmGhjyZw5uKQwjKYESiTMFi83EbYbMA6sUEJ7fV")
 	val ParamaterBoxNft = fromBase58("51Dq9PTkkygb17t9z65H3PxSqHk3R7vcb5ysJPhvpiL9")
-	val ParentBoxNft = fromBase58("4kZi3MPJsibdHG9PkahbPwtgP1wXRwUFFLEhLRJs24xH")
+	val ParentBoxNft = fromBase58("AX5fHB4iAmJZsqHxXY9isp9FSLWp13GeEd584bWSyAwk")
 	val MaxLendTokens = 9000000000000010L // Set 1,000,000 higher than true maximum so that genesis lend token value is 1.
 	val MaxBorrowTokens = 9000000000000000L
 	val LiquidationThresholdDenomination = 1000
@@ -18,7 +18,7 @@
 	val sFeeDivisorTwo = 200
 	val sFeeDivisorThree = 250
 	val LendTokenMultipler = 1000000000000000L.toBigInt
-	val MaximumNetworkFee = 4000000
+	val MaximumNetworkFee = 5000000
 	val MinLoanValue = 50000000L
 	val forcedLiquidationBuffer = 500000
 
@@ -196,7 +196,7 @@
 
 		// Check sufficient collateral
 		val inputAmount = collateralValue - MaximumNetworkFee.toBigInt 
-				val collateralMarketValue = (dexReservesToken._2.toBigInt * inputAmount.toBigInt * dexFee.toBigInt) /
+		val collateralMarketValue = (dexReservesToken._2.toBigInt * inputAmount.toBigInt * dexFee.toBigInt) /
 			((dexReservesErg.toBigInt + (dexReservesErg.toBigInt * Slippage.toBigInt / 100.toBigInt)) * DexFeeDenom.toBigInt +
 			(inputAmount.toBigInt * dexFee.toBigInt)) 
 		
