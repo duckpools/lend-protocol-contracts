@@ -14,7 +14,7 @@
 		sigmaProp(
 			validBorrowerScript &&
 			validBorrowerCollateral &&
-			multiBoxSpendSafety &&
+			multiBoxSpendSafety
 		)
 	} else {
 		val minTxFee = 1000000L
