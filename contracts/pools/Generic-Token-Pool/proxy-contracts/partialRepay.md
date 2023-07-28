@@ -76,7 +76,7 @@
 			retainMinValue &&
 			retainBorrowTokenId &&
 			validBorrowTokens &&
-			retainRegisters && true && true && true
+			retainRegisters 
 		)
 		isPartialRepayment
 	}
