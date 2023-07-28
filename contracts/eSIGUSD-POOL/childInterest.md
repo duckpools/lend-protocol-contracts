@@ -1,7 +1,7 @@
 ```scala
 {
-	val PoolNft                = fromBase58("UiocPX2UskC22zEyjduKAtm7XLWrfhDXn2KZrgAGbga")
-	val InterestParamaterBoxNft = fromBase58("5L4zTScZwqU5UUfibyPKgCXdSLEELKm87CEqqi217yhs")
+	val PoolNft                = fromBase58("Eiig1N6F5UErnPiz8Cr9bgzjf4zvk6YBx7eBtbtdDC6P")
+	val InterestParamaterBoxNft = fromBase58("Gc9anyD1uSmfVnSsEduEnezqK3bgqaDv8QjTQcDitM1L")
 	val InterestDenomination     = 100000000L
 	val CoefficientDenomination = 100000000L
 	val InitiallyLockedLP      = 9000000000000000L
