@@ -1,16 +1,21 @@
 ```scala
 {
+	// Constants
 	val nextVoteDeadline = SELF.R4[Long].get
 	val passProposalDeadline = nextVoteDeadline + 150
 	val newProposalDeadline = passProposalDeadline + 150
-	val validVoteId = fromBase58("")
-	val quacksId = fromBase58("")
+	val validVoteId = fromBase58("2NDQNUkdkhrrQGJcPZugFjCfE2KtMP9dMvjox1VRYJPs")
+	val quacksId = fromBase58("aa5Hq5V5ssGxbReLMzpJ55nVrb73CWJ1oRiKD2X5Qkv")
 	val minimumVotes = 100000L
 	val voteResultDenomination = 1000L
 	val minimumSupport = 500L
 	val proposalTree = fromBase58("")
-	val votingPeriodicity = 1000
+	val votingPeriodicity = 21900L
+	val noNewProposalPeriod = 1000L
+	val elevatedSupport = 900L
+	val elevatedProportion = 1000000L
 	
+	// Load Current Values
 	val currentScript = SELF.propositionBytes
 	val currentValue = SELF.value
 	val currentResultTokens = SELF.tokens(0)
@@ -20,6 +25,7 @@
 	val currentInitiationAmount = SELF.R8[Long].get
 	val currentVoteValidation = SELF.R9[Long].get
 	
+	// Load Successor Values
 	val successor = OUTPUTS(0)
 	val successorScript = successor.propositionBytes
 	val successorValue = successor.value
@@ -31,13 +37,15 @@
 	val successorInitiationAmount = successor.R8[Long].get
 	val successorVoteValidation = successor.R9[Long].get
 	
-	val isBeforeCounting = HEIGHT < nextVoteDeadline
+	// Define voting periods
+	val isBeforeCounting = HEIGHT < nextVoteDeadline - noNewProposalPeriod
 	val isCountingPeriod = HEIGHT > nextVoteDeadline && HEIGHT < passProposalDeadline
 	val isVoteValidationPeriod = HEIGHT > passProposalDeadline && HEIGHT < newProposalDeadline
 	val isNewProposalPeriod = HEIGHT > newProposalDeadline
 
 	if (isBeforeCounting) {
 		// Allow for updates to voting item
+		// Load Initiation Box
 		val voteInitiationBox = CONTEXT.dataInputs(0)
 		val votePower = voteInitiationBox.tokens(0)._2 
 		val nominatedProportion = voteInitiationBox.R4[Long].get
@@ -60,6 +68,7 @@
 		val isSuccessorInitiationValid = successorInitiationAmount == votePower
 		val isVoteValidationValid = successorVoteValidation == 0L
 		
+		// Apply validation conditions
 		isValidInitiationBox &&
 		isValidScript &&
 		isValidValue &&
@@ -87,7 +96,7 @@
 			(z:Long, base:Box) => if (base.R9[Int].get == 1) {
 				z + base.tokens(1)._2
 			} else {
-				z - base.tokens(1)._2
+				z
 			}
 		})
 		val expectedTotalVotes = totalVotes + currentTotalVotes 
@@ -98,7 +107,14 @@
 				in.tokens(0)._1 == validVoteId &&
 				in.tokens(1)._1 == quacksId &&
 				in.R8[Long].get < nextVoteDeadline
+			)
 		}
+		
+		val isVoteTokensBurnt = OUTPUTS.forall{
+			(out : Box) => out.tokens.forall{
+				(token: (Coll[Byte], Long)) => token._1 != validVoteId
+				}
+			}
 		
 		// Recreate box with new vote counts
 		val isValidScript = successorScript == currentScript 
@@ -119,13 +135,12 @@
 		isRecipientVoteValid &&
 		isTotalVotesValid &&
 		isVoteValidationValid &&
-		isValidVotes		
+		isValidVotes &&
+		isVoteTokensBurnt
+			
 	} else if (isVoteValidationPeriod) {
-		// Check votes to pass pending proposal
-		val isVoteSuccessful = (
-			currentVoteValidation > 0 &&
-			currentTotalVotes > minimumVotes
-		)
+		// Period to validate a pending proposal
+		// Load proposal box
 		val currentProposalBox = INPUTS(1)
 		val currentProposalTokens = currentProposalBox.tokens(0)
 		val currentProposalProportion = currentProposalBox.R4[Long].get
@@ -138,6 +153,14 @@
 			currentResultTokens._2 == currentProposalValidationHeight  
 		)
 		
+		// Check votes to pass pending proposal
+		val isVoteSuccessful = if (currentProposalProportion > elevatedProportion) {
+			currentVoteValidation * voteResultDenomination / currentTotalVotes > elevatedSupport
+		} else {
+			currentVoteValidation * voteResultDenomination / currentTotalVotes > minimumSupport
+		} && currentTotalVotes > minimumVotes
+		
+		// Load successor proposal box
 		val successorProposalBox = OUTPUTS(1)
 		val successorProposalScript = successorProposalBox.propositionBytes
 		val successorProposalValue = successorProposalBox.value
@@ -161,6 +184,7 @@
 		val isTotalVotesValid = successorTotalVotes == 0L
 		val isVoteValidationValid = successorVoteValidation == 0L	
 		
+		// Apply validation conditions
 		isVoteSuccessful &&
 		isValidProposalBox &&
 		isValidProposalScript &&
@@ -206,6 +230,7 @@
 		val isTotalVotesValid = successorTotalVotes == 0L
 		val isVoteValidationValid = successorVoteValidation == currentVoteValidation
 		
+		// Apply validation conditions
 		isVoteSuccessful &&
 		isValidProposalScript &&
 		isValidProposalNft &&
