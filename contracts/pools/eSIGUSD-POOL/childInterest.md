@@ -1,0 +1,86 @@
+```scala
+{
+	val PoolNft                = fromBase58("Eiig1N6F5UErnPiz8Cr9bgzjf4zvk6YBx7eBtbtdDC6P")
+	val InterestParamaterBoxNft = fromBase58("Gc9anyD1uSmfVnSsEduEnezqK3bgqaDv8QjTQcDitM1L")
+	val InterestDenomination     = 100000000L
+	val CoefficientDenomination = 100000000L
+	val InitiallyLockedLP      = 9000000000000000L
+	val MaximumBorrowTokens        = 9000000000000000L
+	val MaximumHistoryHeight = 100
+	val MaximumExecutionFee = 2000000
+	val updateFrequency = 20
+
+	val successor = OUTPUTS(0)
+	val pool      = CONTEXT.dataInputs(0)
+	val parameterBox = CONTEXT.dataInputs(1)
+
+	val interestHistory      = SELF.R4[Coll[Long]].get
+	val recordedHeight       = SELF.R5[Long].get
+	val childIndex = SELF.R6[Int].get
+	val finalInterestHistory = successor.R4[Coll[Long]].get
+	val finalHeight          = successor.R5[Long].get
+	val finalChildIndex = successor.R6[Int].get
+
+	// get coefficients
+	val coefficients = parameterBox.R4[Coll[Long]].get
+	val a = coefficients(0).toBigInt
+	val b = coefficients(1).toBigInt
+	val c = coefficients(2).toBigInt
+	val d = coefficients(3).toBigInt
+	val e = coefficients(4).toBigInt
+	val f = coefficients(5).toBigInt
+	 
+	val deltaHeight      = HEIGHT - recordedHeight
+	val isReadyToUpdate = deltaHeight >= updateFrequency // About 12 hours
+
+	val poolAssets = pool.tokens(3)._2
+	val deltaFinalHeight      = finalHeight - HEIGHT
+	val validDeltaFinalHeight = (deltaFinalHeight >= 0 && deltaFinalHeight <= 15)
+	val borrowed    = MaximumBorrowTokens - pool.tokens(2)._2
+	val util        = (InterestDenomination.toBigInt * borrowed.toBigInt / (poolAssets.toBigInt + borrowed.toBigInt))
+
+	val D = CoefficientDenomination.toBigInt
+	val M = InterestDenomination.toBigInt
+	val x = util.toBigInt
+
+	val currentRate = (
+		M + (
+			a + 
+			(b * x) / D + 
+			(c * x) / D * x / M +
+			(d * x) / D * x / M * x / M +
+			(e * x) / D * x / M * x / M * x / M + 
+			(f * x) / D * x / M * x / M * x / M * x / M
+			)
+		) 
+
+	val retainedERG          = successor.value >= SELF.value - MaximumExecutionFee
+	val preservedInterestNFT = successor.tokens == SELF.tokens
+
+	val validSuccessorScript = SELF.propositionBytes == successor.propositionBytes
+	val validInterestUpdate = ( 
+		interestHistory == finalInterestHistory.slice(0, interestHistory.size) &&
+		finalInterestHistory(interestHistory.size).toBigInt == currentRate &&
+		finalInterestHistory.size == interestHistory.size + 1
+	)
+
+	val validPoolBox = pool.tokens(0)._1 == PoolNft
+	val validParameterBox = parameterBox.tokens(0)._1 == InterestParamaterBoxNft
+
+	val retainIndex = finalChildIndex == childIndex
+	val isUnderMaxHeight = finalInterestHistory.size <= MaximumHistoryHeight
+
+	sigmaProp(
+		isReadyToUpdate &&
+		isUnderMaxHeight &&
+		validSuccessorScript &&
+		retainedERG &&
+		preservedInterestNFT &&
+		validInterestUpdate &&
+		validDeltaFinalHeight &&
+		retainIndex &&
+		validPoolBox &&
+		validParameterBox 	  	  
+	)
+}
+```
