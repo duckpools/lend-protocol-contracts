@@ -1,10 +1,10 @@
 ```scala
 {
 	// Constants
-	val CollateralContractScript = fromBase58("5uLGJmcRuKFS7WrXd1K68TyLb6AbaMffdJKW6MvqKzi6")
-	val ChildBoxNft = fromBase58("8FfPh3nDuPAPVQmVt58oxtxdPz4XCrHKtFuoFFpZLjKm")
-	val ParamaterBoxNft = fromBase58("DM6yVvvNTARUwGUDr5XjD8s39ZxeQ7rhFcrocUevR6Ns")
-	val ParentBoxNft = fromBase58("25qcSJ7XVwFWtoUG6zT6y1gL7Gq2cVwjPEZsDU1TiwLK")
+	val CollateralContractScript = fromBase58("BNuWzHoKmGB9GyqtbbXJV3ess34Z4EfaxiNaSXvMD9A5")
+	val ChildBoxNft = fromBase58("ATVQAaxh8iMi6NdYWS3CzWrLeXMb46LBRx3Y2S6rvirs")
+	val ParamaterBoxNft = fromBase58("6NytZBG2wTdLB9vW2d5sU9Q7qxaeY8Eh9Sk6MQDPq4r2")
+	val ParentBoxNft = fromBase58("4iBttTCbKeUTRvVdJ4yGPragorF323sEbb7JxtRfRCc5")
 	val MaxLendTokens = 9000000001000000L // Set 1,000,000 higher than true maximum so that genesis lend token value is 1.
 	val MaxBorrowTokens = 9000000000000000L
 	val LiquidationThresholdDenomination = 1000
@@ -21,6 +21,7 @@
 	val LendTokenMultipler = 1000000000000000L.toBigInt
 	val MaximumNetworkFee = 4000000
 	val forcedLiquidationBuffer = 500000
+	val defaultBuffer = 100000000L
 
 	// Current pool values
 	val currentScript = SELF.propositionBytes
@@ -145,7 +146,8 @@
 		val collateralThresholdPenalty = collateralBox.R6[(Long, Long)].get
 		val collateralDexNft = collateralBox.R7[Coll[Byte]].get
 		val isUserPkDefined = collateralBox.R8[GroupElement].isDefined
-		val forcedLiquidation = collateralBox.R9[Long].get
+		val forcedLiquidation = collateralBox.R9[(Long, Long)].get._1
+		val bufferLiquidation = collateralBox.R9[(Long, Long)].get._2
 		val loanAmount = collateralBorrowTokens._2
 		val collateralParentIndex = collateralInterestIndexes(0)
 		val collateralChildIndex = collateralInterestIndexes(1)
@@ -202,7 +204,8 @@
 		
 		// Check forced liquidation height
 		val isValidForcedLiquidation = forcedLiquidation > HEIGHT && forcedLiquidation < HEIGHT + forcedLiquidationBuffer
-
+		val isValidLiquidationBuffer = bufferLiquidation == defaultBuffer
+		
 		// Validate Erg and token values in LendPool and collateralBox
 		val isAssetAmountValid = deltaAssetsInPool * -1 == loanAmount
 		val isTotalBorrowedValid = deltaTotalBorrowed == loanAmount
@@ -210,7 +213,7 @@
 		
 		// Validate other loaded boxes
 		val isValidCollateralContract = blake2b256(collateralScript) == CollateralContractScript
-		val isValidCollateralValue = collateralValue >= MinimumBoxValue + MinimumTxFee// Ensure collateral value sufficient for safety
+		val isValidCollateralValue = collateralValue >= MinimumBoxValue + 3 * MinimumTxFee// Ensure collateral value sufficient for safety
 		val isValidChildBox = childBoxNft._1 == ChildBoxNft && childIndex == parentInterestHistory.size
 		val isValidParentBox = parentBoxNft._1 == ParentBoxNft
 		val isValidParamaterBox = paramaterNft._1 == ParamaterBoxNft
@@ -240,6 +243,7 @@
 			isValidDexNft &&
 			isUserPkDefined &&
 			isValidForcedLiquidation &&
+			isValidLiquidationBuffer &&
 			isValidChildBox &&
 			isValidParentBox &&
 			isValidParamaterBox
