@@ -1,6 +1,6 @@
 ```scala
 {
-	val lendPoolToken = fromBase58("13Sg6DCdibigKGQnYzBxZtyXRt8W5K5wqY9LTgSzmEhH")
+	val lendPoolToken = fromBase58("4Ft2Y28ioPCfjXBkFXwZrfXu2wLMtSVCDEuuJSk6h6J3")
 	val minTxFee      = 1000000L
 	val minBoxValue   = 1000000L
 	
