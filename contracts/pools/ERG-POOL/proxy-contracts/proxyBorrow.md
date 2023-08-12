@@ -1,10 +1,10 @@
 ```scala
 {
-	val collateralBoxScript  = fromBase58("5uLGJmcRuKFS7WrXd1K68TyLb6AbaMffdJKW6MvqKzi6")
+	val collateralBoxScript  = fromBase58("BNuWzHoKmGB9GyqtbbXJV3ess34Z4EfaxiNaSXvMD9A5")
 	val minTxFee      = 1000000L
 	val minBoxValue   = 1000000L
-	val poolNFT       = fromBase58("24PGhuwbdzcdCMbtJ88yknnqsqVEMSXecxQ9em1To9B1")
- 	val BorrowTokenId = fromBase58("CECysj7CUU6RRraKcTpYZ1k13ge4LrteKm6CvZ5rimzT")
+	val poolNFT       = fromBase58("5uta7hHM9Qxz4Y3AHC8LSvMVgEp8wjzd8igKrXYRqPKX")
+ 	val BorrowTokenId = fromBase58("7kQToEwitWR2wKXwuintw8C38X4ZQFq3WySzg6B1iZvH")
 	
 	val user          = SELF.R4[Coll[Byte]].get
 	val requestAmount = SELF.R5[Long].get
@@ -44,7 +44,7 @@
 		val thresholdPenalty = collateralBox.R6[(Long, Long)].get
 		val dexNft = collateralBox.R7[Coll[Byte]].get
 		val collateralUserPk = collateralBox.R8[GroupElement].get
-		val collateralForcedLiquidation = collateralBox.R9[Long].get
+		val collateralForcedLiquidation = collateralBox.R9[(Long, Long)].get._1
 		
 		val loanAmount = collateralBorrowTokens._2
 		
