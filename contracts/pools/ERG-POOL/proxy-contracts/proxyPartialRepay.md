@@ -36,7 +36,7 @@
 		val currentThresholdPenalty = currentCollateralBox.R6[(Long, Long)].get
 		val currentDexNft = currentCollateralBox.R7[Coll[Byte]].get
 		val currentUserPk = currentCollateralBox.R8[GroupElement].get
-		val currentForcedLiquidation = currentCollateralBox.R9[Long].get
+		val currentForcedLiquidation = currentCollateralBox.R9[(Long, Long)].get
 		val currentLoanAmount = currentBorrowTokens._2
 		
 		// Extract values from final collateral box
@@ -50,7 +50,7 @@
 		val successorThresholdPenalty = successorCollateralBox.R6[(Long, Long)].get
 		val successorDexNft = successorCollateralBox.R7[Coll[Byte]].get
 		val successorUserPk = successorCollateralBox.R8[GroupElement].get
-		val successorForcedLiquidation = successorCollateralBox.R9[Long].get
+		val successorForcedLiquidation = successorCollateralBox.R9[(Long, Long)].get
 		
 		// Validate the current collateral box
 		val validInputCollateral = currentCollateralBox.id == collateralBoxId
