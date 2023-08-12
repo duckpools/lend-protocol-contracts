@@ -1,10 +1,10 @@
 ```scala
 {
 	// Constants
-	val MaximumExecutionFee = 5000000
-	val ChildExecutionFee = 2000000
+	val MaximumExecutionFee = 5000000L
+	val ChildExecutionFee = 2000000L
 	val InterestContractDenomination = 100000000L
-	val MaxHistorySize = 100
+	val MaxHistorySize = 430
 
 	// Get current box values
 	val currentScript = SELF.propositionBytes
@@ -44,6 +44,14 @@
 	val retainParentToken = successorParentToken == currentParentToken
 	val validChildTokensId = successorChildTokens._1 == currentChildTokens._1 
 	val validChildTokensAmount = successorChildTokens._2 == currentChildTokens._2 - 1
+	val noMoreTokens = successor.tokens.size == SELF.tokens.size
+	val validDummyRegisters = (
+		successor.R5[Boolean].get &&
+		successor.R6[Boolean].get &&
+		successor.R7[Boolean].get &&
+		successor.R8[Boolean].get &&
+		successor.R9[Boolean].get
+	)
 
 	// Calculate successorInterestHistory
 	val totalInterestAccrued = headInterestHistory.fold(InterestContractDenomination, {(z:Long, base:Long) => (z * base / InterestContractDenomination)})
@@ -63,7 +71,13 @@
 	val validChildIndex = newIndex == successorInterestHistory.size
 	val validChildHistory = newInterestHistory == Coll(InterestContractDenomination)
 	val validChildHeight = newChildHeight == headChildHeight
-	
+	val validChildDummyRegisters = (
+		newChild.R7[Boolean].get &&
+		newChild.R8[Boolean].get &&
+		newChild.R9[Boolean].get
+	)
+	val validChildTokenSize = newChild.tokens.size == 1
+
 	sigmaProp(
 		validSuccessorScript &&
 		validSuccessorValue &&
@@ -71,6 +85,8 @@
 		validChildTokensId &&
 		validChildTokensAmount &&
 		validSuccessorInterestHistory &&
+		noMoreTokens &&
+		validDummyRegisters &&
 		validHeaderTokenId &&
 		validHeaderIndex &&
 		validHeaderHistorySize &&
@@ -79,7 +95,9 @@
 		validChildToken &&
 		validChildIndex &&
 		validChildHistory &&
-		validChildHeight && true && HEIGHT > 1
+		validChildHeight &&
+		validChildDummyRegisters &&
+		validChildTokenSize
 	)
 }
 ```
