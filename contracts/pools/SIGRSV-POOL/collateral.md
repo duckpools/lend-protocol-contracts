@@ -1,9 +1,9 @@
 ```scala
 {
 	// Constants
-	val RepaymentContractScript = fromBase58("APRkYDPhArTKCZb4gc1foRz7TK8Vz7hy6Rt3RLqtgZ88")
-	val ChildInterestNft = fromBase58("5V2WBfExzCqGXpTSXaoiBTie43wFd7nWWawzEo2ab2PH")
-	val ParentInterestNft = fromBase58("7u2TYVhNKaQ33ffPpbx2y4CD62HAX1aaK7vSRGsHSpSa")
+	val RepaymentContractScript = fromBase58("EjuGN26hvu4agv9FCHEmWMMz4UHUo21z1r5P4yzRv5ud")
+	val ChildInterestNft = fromBase58("6c1DE48kbWg3FpYjB4hVEAdoiS21dE8YejEfnpJw2RjG")
+	val ParentInterestNft = fromBase58("HWRDckinmB5iZqPPu4WhfbBkFLvcRp4RUux9vA9NYWUi")
 	val PoolCurrencyId = fromBase58("1uuSELXj5meePwVr5PX1ndCSEsUvqV4EmNunatgho9y")
 	val InterestRateDenom = 100000000L
 	val MaximumNetworkFee = 5000000
@@ -13,6 +13,7 @@
 	val MinimumTransactionFee = 1000000L
 	val MinimumBoxValue = 1000000
 	val Slippage = 2 // Divided by 100 to represent 2%
+	val defaultBuffer = 100000000L
 
 	// Extract variables from SELF
 	val currentScript = SELF.propositionBytes
@@ -23,7 +24,8 @@
 	val currentThresholdPenalty = SELF.R6[(Long, Long)].get
 	val currentDexNft = SELF.R7[Coll[Byte]].get
 	val currentUserPk = SELF.R8[GroupElement].get
-	val currentForcedLiquidation = SELF.R9[Long].get
+	val currentForcedLiquidation = SELF.R9[(Long, Long)].get._1
+	val currentLiquidationBuffer = SELF.R9[(Long, Long)].get._2
 	val loanAmount = currentBorrowTokens._2
 	val parentIndex = currentIndexes(0)
 	val childIndex = currentIndexes(1)
@@ -95,7 +97,8 @@
 		val successorThresholdPenalty = successor.R6[(Long, Long)].get
 		val successorDexNft = successor.R7[Coll[Byte]].get
 		val successorUserPk = successor.R8[GroupElement].get
-		val successorForcedLiquidation = successor.R9[Long].get
+		val successorForcedLiquidation = successor.R9[(Long, Long)].get._1
+		val successorBufferLiquidation = successor.R9[(Long, Long)].get._2
 		
 		// Extract values from dexBox
 		val dexBox = CONTEXT.dataInputs(3)
@@ -120,11 +123,15 @@
 			successorThresholdPenalty == currentThresholdPenalty &&
 			successorDexNft == currentDexNft &&
 			successorUserPk == currentUserPk &&
-			successorForcedLiquidation == currentForcedLiquidation
+			successorForcedLiquidation == currentForcedLiquidation &&
+			successorBufferLiquidation == currentLiquidationBuffer
 		)
 		// Check sufficient remaining collateral
-		val isCorrectCollateralAmount = collateralValue >= totalOwed.toBigInt * liquidationThreshold.toBigInt / LiquidationThresholdDenom.toBigInt
-
+		val isCorrectCollateralAmount = (
+			collateralValue >= totalOwed.toBigInt * liquidationThreshold.toBigInt / LiquidationThresholdDenom.toBigInt &&
+			successorValue >= 3 * MinimumBoxValue + MinimumTransactionFee
+		)
+		
 		// Allow spending by user if validation conditions met
 		proveDlog(currentUserPk) && 
 		sigmaProp(
@@ -174,7 +181,7 @@
 			validParentNft &&
 			validHeadChild 
 		)
-		val partialRepayment = if (OUTPUTS(0).tokens.size >= 1 && INPUTS(0).tokens.size < 3) {
+		val collateralRecreationPaths = if (OUTPUTS(0).tokens.size >= 1 && INPUTS(0).tokens.size < 3) {
 			// Partial Repay
 			// Extract values form successor
 			val successor = OUTPUTS(0)
@@ -186,7 +193,8 @@
 			val successorThresholdPenalty = successor.R6[(Long, Long)].get
 			val successorDexNft = successor.R7[Coll[Byte]].get
 			val successorUserPk = successor.R8[GroupElement].get
-			val successorForcedLiquidation = successor.R9[Long].get
+			val successorForcedLiquidation = successor.R9[(Long, Long)].get._1
+			val successorBufferLiquidation = successor.R9[(Long, Long)].get._2
 			
 			// Extract values from dexBox
 			val dexBox = CONTEXT.dataInputs(3)
@@ -205,7 +213,10 @@
 			val finalTotalOwed = successorBorrowTokens._2 * compoundedInterest / InterestRateDenom
 			
 			// Check sufficient collateral value to prevent double-spend attempts on partialRepayment
-			val isSufficientCollateral = collateralValue >= finalTotalOwed.toBigInt * liquidationThreshold.toBigInt / LiquidationThresholdDenom.toBigInt
+			val isSufficientCollateral = (
+				collateralValue >= finalTotalOwed.toBigInt * liquidationThreshold.toBigInt / LiquidationThresholdDenom.toBigInt &&
+				successorValue >= 3 * MinimumBoxValue + MinimumTransactionFee
+			)
 			
 			// Calculate expected borrowTokens
 			val repaymentMade = repaymentLoanTokens._2			
@@ -232,24 +243,50 @@
 				repaymentBorrowTokens._1 == currentBorrowTokens._1
 				)
 			
-			// Apply validation conditions 
-			(
-				validSuccessorScript &&
-				retainMinValue &&
-				retainBorrowTokenId &&
-				validBorrowTokens &&
-				retainRegisters &&
-				validRepaymentScript &&
-				validRepaymentValue &&
-				validRepayLoanTokenId &&
-				validPartialRecordOfLoan &&
-				validBaseChildNft &&
-				validBaseChildIndex &&
-				validParentNft &&
-				validHeadChild &&
-				isSufficientCollateral &&
-				validDexBox
-			)
+
+			if (successorBufferLiquidation == defaultBuffer) {
+				// Partial Repayment conditions
+				// Apply validation conditions
+				val retainBuffer = currentLiquidationBuffer == successorBufferLiquidation
+				(
+					validSuccessorScript &&
+					retainMinValue &&
+					retainBorrowTokenId &&
+					validBorrowTokens &&
+					retainRegisters &&
+					retainBuffer &&
+					validRepaymentScript &&
+					validRepaymentValue &&
+					validRepayLoanTokenId &&
+					validPartialRecordOfLoan &&
+					validBaseChildNft &&
+					validBaseChildIndex &&
+					validParentNft &&
+					validHeadChild &&
+					isSufficientCollateral &&
+					validDexBox
+				)
+			} else {
+				val retainTokens = successor.tokens == SELF.tokens
+				val adjustBuffer = successorBufferLiquidation > HEIGHT && successorBufferLiquidation < HEIGHT + 5
+				val sufficientValue = successor.value >= SELF.value - MinimumTransactionFee
+				val isFirstIndication = currentLiquidationBuffer == defaultBuffer
+				(
+					!isSufficientCollateral &&
+					validSuccessorScript &&
+					sufficientValue &&
+					retainTokens &&
+					retainRegisters &&	
+					adjustBuffer &&
+					isFirstIndication &&
+					validBaseChildNft &&
+					validBaseChildIndex &&
+					validParentNft &&
+					validDexBox &&
+					validHeadChild
+				)
+
+			}
 		} else {
 			false 
 		}
@@ -271,7 +308,10 @@
 			
 			// Check if liquidation is allowed
 			val liquidationAllowed = (
-				collateralValue <= totalOwed.toBigInt * liquidationThreshold.toBigInt / LiquidationThresholdDenom.toBigInt || 
+				(
+					collateralValue <= totalOwed.toBigInt * liquidationThreshold.toBigInt / LiquidationThresholdDenom.toBigInt &&
+					HEIGHT >= currentLiquidationBuffer
+				) || 
 				HEIGHT > currentForcedLiquidation
 			)
 			
@@ -308,7 +348,7 @@
 		} else {
 			false
 		}
-	sigmaProp(repayment || liquidation || partialRepayment)
+	sigmaProp(repayment || liquidation || collateralRecreationPaths)
 	}
 	else {
 		sigmaProp(false)
