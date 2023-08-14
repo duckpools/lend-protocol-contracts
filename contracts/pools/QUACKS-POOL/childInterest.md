@@ -1,14 +1,14 @@
 ```scala
 {
-	val PoolNft                = fromBase58("BuuVjT84EKddjJpxd4YU4or6qdX6ChB6to15z9VnfkEh")
-	val InterestParamaterBoxNft = fromBase58("14aLPuqejVSPYRbpT7nH6zn8QvACNum9jjWEpTQHSQF3")
+	val PoolNft                = fromBase58("24DM3LdJQeQ2NPxWRXAZkxGjKFm5zkykUZVp1KCv8zng")
+	val InterestParamaterBoxNft = fromBase58("4ZV3LS2rG3YGjy2LQMqNgBUep6ofmdwAXMzdRbTT2B7N")
 	val InterestDenomination     = 100000000L
 	val CoefficientDenomination = 100000000L
 	val InitiallyLockedLP      = 9000000000000000L
 	val MaximumBorrowTokens        = 9000000000000000L
-	val MaximumHistoryHeight = 100
+	val MaximumHistoryHeight = 430
 	val MaximumExecutionFee = 2000000
-	val updateFrequency = 20
+	val updateFrequency = 120
 
 	val successor = OUTPUTS(0)
 	val pool      = CONTEXT.dataInputs(0)
@@ -31,11 +31,11 @@
 	val f = coefficients(5).toBigInt
 	 
 	val deltaHeight      = HEIGHT - recordedHeight
-	val isReadyToUpdate = deltaHeight >= updateFrequency // About 12 hours
+	val isReadyToUpdate = deltaHeight >= updateFrequency 
 
 	val poolAssets = pool.tokens(3)._2
 	val deltaFinalHeight      = finalHeight - HEIGHT
-	val validDeltaFinalHeight = (deltaFinalHeight >= 0 && deltaFinalHeight <= 15)
+	val validDeltaFinalHeight = (deltaFinalHeight >= 0 && deltaFinalHeight <= 5)
 	val borrowed    = MaximumBorrowTokens - pool.tokens(2)._2
 	val util        = (InterestDenomination.toBigInt * borrowed.toBigInt / (poolAssets.toBigInt + borrowed.toBigInt))
 
@@ -69,6 +69,14 @@
 
 	val retainIndex = finalChildIndex == childIndex
 	val isUnderMaxHeight = finalInterestHistory.size <= MaximumHistoryHeight
+	
+	val isValidDummyRegisters = (
+		successor.R7[Boolean].get &&
+		successor.R8[Boolean].get &&
+		successor.R9[Boolean].get
+	)
+
+	val noMoreTokens = successor.tokens.size == SELF.tokens.size
 
 	sigmaProp(
 		isReadyToUpdate &&
@@ -80,7 +88,9 @@
 		validDeltaFinalHeight &&
 		retainIndex &&
 		validPoolBox &&
-		validParameterBox 	  	  
+		validParameterBox &&
+		isValidDummyRegisters &&
+		noMoreTokens  	  	  
 	)
 }
 ```
