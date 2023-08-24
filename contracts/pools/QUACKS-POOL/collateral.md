@@ -1,9 +1,9 @@
 ```scala
 {
 	// Constants
-	val RepaymentContractScript = fromBase58("Fnmb56jwY8ccaZo3WKs5QLG27iveaH4ERgmguCqtbfkg")
-	val ChildInterestNft = fromBase58("5Gi7KH4iEm9bj2LX74RvbyNtn3U5j26DY8B9vT2P4oH7")
-	val ParentInterestNft = fromBase58("9ub9rgErtnXZScs8efZsRNCuER9RcjojaNQuWkiZA57a")
+	val RepaymentContractScript = fromBase58("8vTto8TCEaUBbMsbf8oX2prd2sM7T35fW35Cdybyw5QS")
+	val ChildInterestNft = fromBase58("F4NCeceQYBwZYrsxUhwidS8H29MS7WyonKFvsoKBFpQH")
+	val ParentInterestNft = fromBase58("EJFQB8zD3xxd45jeUwJzWxpvzZSbi3a27cJdnujww7Ne")
 	val PoolCurrencyId = fromBase58("aa5Hq5V5ssGxbReLMzpJ55nVrb73CWJ1oRiKD2X5Qkv")
 	val InterestRateDenom = 100000000L
 	val MaximumNetworkFee = 5000000
