@@ -1,10 +1,10 @@
 ```scala
 {
-	val collateralBoxScript  = fromBase58("BECKdkJZ43XaZ25B8JXjzv2PDLgeXdS7z49rWGeg9XFa")
+	val collateralBoxScript  = fromBase58("47Hd6WbKwiPkcMyFipaBDE9f22Rt4zSNRw6v2WW4zGTR")
 	val minTxFee      = 1000000L
 	val minBoxValue   = 1000000L
-	val poolNFT       = fromBase58("24DM3LdJQeQ2NPxWRXAZkxGjKFm5zkykUZVp1KCv8zng")
- 	val BorrowTokenId = fromBase58("5knt8Lt3Z7AJYudAVDG9u5GF6FafCCrXRQ1JNWhCVNRb")
+	val poolNFT       = fromBase58("CDFbkWeJdXSxbWys91ojhnuD395cYHk1N2c5t6m7qWBz")
+ 	val BorrowTokenId = fromBase58("3dpfMYDWKgpUM8CY3GyV6kF9DvqeJkfPg9i8izhMLLvJ")
 	val PoolNativeCurrency = fromBase58("aa5Hq5V5ssGxbReLMzpJ55nVrb73CWJ1oRiKD2X5Qkv")
 	
 	val user          = SELF.R4[Coll[Byte]].get
