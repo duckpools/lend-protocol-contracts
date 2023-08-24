@@ -1,10 +1,10 @@
 ```scala
 {
 	// Constants
-	val CollateralContractScript = fromBase58("Befbtu48J3n22AoWzgMKid6QwsD3WBpawcfSefi3cjrT")
-	val ChildBoxNft = fromBase58("5Gi7KH4iEm9bj2LX74RvbyNtn3U5j26DY8B9vT2P4oH7")
-	val ParamaterBoxNft = fromBase58("9UcJLVR7wktFh8Eb5h5bJP8uxVoGCzZjrvQWNDqvQ4Ti")
-	val ParentBoxNft = fromBase58("9ub9rgErtnXZScs8efZsRNCuER9RcjojaNQuWkiZA57a")
+	val CollateralContractScript = fromBase58("47Hd6WbKwiPkcMyFipaBDE9f22Rt4zSNRw6v2WW4zGTR")
+	val ChildBoxNft = fromBase58("F4NCeceQYBwZYrsxUhwidS8H29MS7WyonKFvsoKBFpQH")
+	val ParamaterBoxNft = fromBase58("Fv7NY231or5R3rZZsWkdwfHuDbQ8CPL189ymgMjWeNtG")
+	val ParentBoxNft = fromBase58("EJFQB8zD3xxd45jeUwJzWxpvzZSbi3a27cJdnujww7Ne")
 	val MaxLendTokens = 9000000000000010L // Set 1,000,000 higher than true maximum so that genesis lend token value is 1.
 	val MaxBorrowTokens = 9000000000000000L
 	val LiquidationThresholdDenomination = 1000
