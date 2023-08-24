@@ -3,7 +3,7 @@
 	// Constants
 	val transactionFee = 1000000L 
 	val MaxBorrowTokens = 9000000000000000L // Maximum allowed borrowable tokens
-	val PoolNft = fromBase58("24DM3LdJQeQ2NPxWRXAZkxGjKFm5zkykUZVp1KCv8zng") // Non-fungible token for the pool
+	val PoolNft = fromBase58("98vHhFJAt1XntGXjtiGPB6RpyZ7PU8o39GnwdUwvYCqi") // Non-fungible token for the pool
 	
 	val initalPool = INPUTS(0)
 	val finalPool = OUTPUTS(0)
