@@ -1,9 +1,9 @@
 ```scala
 {
 	// Constants
-	val RepaymentContractScript = fromBase58("AvJKJSeB7EBTUMDVwu3txXfDrCab4hjd37JSkeoX65Gy")
-	val ChildInterestNft = fromBase58("DFdmN14PiHn4zfr2qwgyF7bTuvEutB1whe8PBbwwRXUR")
-	val ParentInterestNft = fromBase58("6zZzv66oeXkHyyzd9XNRwARBThFouWKhwfJm9H9ERwaE")
+	val RepaymentContractScript = fromBase58("Fnmb56jwY8ccaZo3WKs5QLG27iveaH4ERgmguCqtbfkg")
+	val ChildInterestNft = fromBase58("5Gi7KH4iEm9bj2LX74RvbyNtn3U5j26DY8B9vT2P4oH7")
+	val ParentInterestNft = fromBase58("9ub9rgErtnXZScs8efZsRNCuER9RcjojaNQuWkiZA57a")
 	val PoolCurrencyId = fromBase58("aa5Hq5V5ssGxbReLMzpJ55nVrb73CWJ1oRiKD2X5Qkv")
 	val InterestRateDenom = 100000000L
 	val MaximumNetworkFee = 5000000
@@ -72,7 +72,7 @@
 		}
 	}
 	
-	val totalOwed = loanAmount * compoundedInterest / InterestRateDenom
+	val totalOwed = 1.toBigInt + (loanAmount.toBigInt * compoundedInterest.toBigInt / InterestRateDenom.toBigInt)
 
 	// Validate base child 
 	val validBaseChildNft = baseChildNft._1 == ChildInterestNft
@@ -128,7 +128,7 @@
 		)
 		// Check sufficient remaining collateral
 		val isCorrectCollateralAmount = (
-			collateralValue >= totalOwed.toBigInt * liquidationThreshold.toBigInt / LiquidationThresholdDenom.toBigInt &&
+			collateralValue > totalOwed.toBigInt * liquidationThreshold.toBigInt / LiquidationThresholdDenom.toBigInt &&
 			successorValue >= 3 * MinimumBoxValue + MinimumTransactionFee
 		)
 
@@ -165,7 +165,7 @@
 		// Validate repayment
 		val validRepaymentScript = blake2b256(repaymentScript) == RepaymentContractScript
 		val validRepaymentValue = repaymentValue >= MinimumBoxValue + MinimumTransactionFee
-		val validRepaymentLoanTokens = repaymentLoanTokens._1 == PoolCurrencyId && repaymentLoanTokens._2 > totalOwed
+		val validRepaymentLoanTokens = repaymentLoanTokens._1 == PoolCurrencyId && repaymentLoanTokens._2.toBigInt > totalOwed
 		val validRecordOfLoan = repaymentBorrowTokens == currentBorrowTokens 
 
 		// Check repayment conditions
@@ -210,7 +210,7 @@
 			// Validate dexBox
 			val validDexBox = dexNft._1 == currentDexNft
 			
-			val finalTotalOwed = successorBorrowTokens._2 * compoundedInterest / InterestRateDenom
+			val finalTotalOwed = 1.toBigInt + (successorBorrowTokens._2.toBigInt * compoundedInterest.toBigInt / InterestRateDenom.toBigInt)
 			
 			// Check sufficient collateral value to prevent double-spend attempts on partialRepayment
 			val isSufficientCollateral = (
