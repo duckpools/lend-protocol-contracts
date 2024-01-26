@@ -231,6 +231,7 @@
 			isVoteReset &&
 			isTotalVotesValid &&
 			isVoteValidationValid &&
+			isTokenArraySizeConstant &&
 			isInitiationAmountReset
 		)
 		
