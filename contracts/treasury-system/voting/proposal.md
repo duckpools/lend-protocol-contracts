@@ -1,31 +1,30 @@
 ```scala
 {
-	val treasuryNft = fromBase58("") // Set at Genesis
-	
-	// Load Current Values
-	val currentScript = SELF.propositionBytes
+	val treasuryNft = fromBase58("3Yb9WKKKsEAiJVbh5Bf1qpVNUFs6dRQzvs85XXQ1nDnU") // Set at Genesis
 	val currentTokens = SELF.tokens(0)
-	val currentProportion = SELF.R4[Long].get
-	val currentRecipient = SELF.R5[Coll[Byte]].get
-	val currentValidationHeight = SELF.R6[Long].get
 	
-	// Load Counting Box
-	val countingBox = INPUTS(0)
-	val countingBoxTokens = countingBox.tokens(0)
+	if (OUTPUTS(1).tokens.size == 1) {	
+		// Load Current Values
+		val currentScript = SELF.propositionBytes
+		val currentProportion = SELF.R4[Long].get
+		val currentRecipient = SELF.R5[Coll[Byte]].get
+		val currentValidationHeight = SELF.R6[Long].get
+		
+		// Load Counting Box
+		val countingBox = INPUTS(0)
+		val countingBoxTokens = countingBox.tokens(0)
+		
+		val isValidCountingBox = (
+			countingBoxTokens._1 == currentTokens._1 && 
+			countingBoxTokens._2 == currentValidationHeight
+		)
+		
+		// Load Successor Values
+		val successor = OUTPUTS(1)
+		val successorScript = successor.propositionBytes
+		val successorProportion = successor.R4[Long].get
+		val successorRecipient = successor.R5[Coll[Byte]].get
 	
-	val isValidCountingBox = (
-		countingBoxTokens._1 == currentTokens._1 && 
-		countingBoxTokens._2 == currentValidationHeight
-	)
-	
-	// Load Successor Values
-	val successor = OUTPUTS(1)
-	val successorScript = successor.propositionBytes
-	val successorProportion = successor.R4[Long].get
-	val successorRecipient = successor.R5[Coll[Byte]].get
-	
-	
-	if (successor.tokens.size == 1) {	
 		val successorTokens = successor.tokens(0)
 		
 		val isValidScript = successorScript == currentScript
@@ -38,7 +37,8 @@
 		isValidScript &&
 		isProportionMaintained &&
 		isRecipientMaintained &&
-		isFirstUpdate
+		isFirstUpdate && 
+		isValidTokens
 	} else {
 		val treasury = INPUTS(1)
 		treasury.tokens(0)._1 == treasuryNft &&
@@ -48,5 +48,5 @@
 			}
 		}
 	}	
-}	
+}		
 ```
