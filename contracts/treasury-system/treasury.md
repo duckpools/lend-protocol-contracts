@@ -1,7 +1,7 @@
 ```scala
 {
 	// Constants
-	val voteNft = fromBase58("4CQ77DnpkJS6iyEw58LWPS6F2a1WdshDo36TBLPx172W")
+	val voteNft = fromBase58("8QdozDTvMhPDPu8DPajs8awo6F4e6LVpnszntq2WS3b5")
 	val proportionDenomination = 10000000L
 	
 	// Branch to seperate deposit and withdrawal
@@ -38,7 +38,7 @@
 		val recipient = voteResult.R5[Coll[Byte]].get
 		
 		// Validate result box
-		val isValidResult = voteResult.tokens(0)._1 == voteNft && voteResult(0)._2 == 2
+		val isValidResult = voteResult.tokens(0)._1 == voteNft && voteResult.tokens(0)._2 == 2
 		
 		// Branch for regular withdrawal and new treasury withdrawal
 		if (proportionAwared != proportionDenomination) {	
@@ -103,6 +103,6 @@
 			isSameTokenSize
 		}
 	} else {
-		false
+		false && false
 	}
 }
