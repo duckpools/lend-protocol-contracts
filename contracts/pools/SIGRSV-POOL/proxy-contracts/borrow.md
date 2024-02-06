@@ -1,10 +1,10 @@
 ```scala
 {
-	val collateralBoxScript  = fromBase58("C6UGo668Y1k7WquMMfPE9AjAtr3Ky8cGH3vWGpZcqYwi")
+	val collateralBoxScript  = fromBase58("A2iJp2BCcryGeFsjrL89qCt3xcKYztSxdHX6osjuqwAn")
 	val minTxFee      = 1000000L
 	val minBoxValue   = 1000000L
-	val poolNFT       = fromBase58("J89PmPQcFNrgpJtGuKaUARjR1xs876XzNnS6ukgtTous")
- 	val BorrowTokenId = fromBase58("5omXSJpxp1E24ZnYZ8vZs9FiwG2KBKLvt6URYdYL2BJ9")
+	val poolNFT       = fromBase58("8txwdGRnbi6RfPhR7rxgzvk5yaxzmm4PGXTaWjfVsfJa")
+ 	val BorrowTokenId = fromBase58("3zJxxr49stXiEATugAfStxSTqPX7mfdJWL6svoc5hntJ")
 	val PoolNativeCurrency = fromBase58("1uuSELXj5meePwVr5PX1ndCSEsUvqV4EmNunatgho9y")
 	
 	val user          = SELF.R4[Coll[Byte]].get
@@ -59,7 +59,7 @@
 		val validThresholdPenalty = userThresholdPenalty == thresholdPenalty
 		val validDexNFT = userDexNft == dexNft
 		val validUserPk = userPk == collateralUserPk
-		val validForcedLiquidation = collateralForcedLiquidation > HEIGHT + 390000
+		val validForcedLiquidation = collateralForcedLiquidation > HEIGHT + 65480 && collateralForcedLiquidation <= HEIGHT + 65520
 		
 		val validInterestIndex = INPUTS(0).tokens(0)._1 == poolNFT // enforced by pool contract
 		

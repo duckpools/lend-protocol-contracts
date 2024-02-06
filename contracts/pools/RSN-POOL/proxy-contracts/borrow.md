@@ -59,7 +59,7 @@
 		val validThresholdPenalty = userThresholdPenalty == thresholdPenalty
 		val validDexNFT = userDexNft == dexNft
 		val validUserPk = userPk == collateralUserPk
-		val validForcedLiquidation = collateralForcedLiquidation > HEIGHT + 390000
+		val validForcedLiquidation = collateralForcedLiquidation > HEIGHT + 65480 && collateralForcedLiquidation <= HEIGHT + 65520
 		
 		val validInterestIndex = INPUTS(0).tokens(0)._1 == poolNFT // enforced by pool contract
 		
