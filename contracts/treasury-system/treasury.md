@@ -1,7 +1,7 @@
 ```scala
 {
 	// Constants
-	val voteNft = fromBase58("8QdozDTvMhPDPu8DPajs8awo6F4e6LVpnszntq2WS3b5")
+	val counterToken = fromBase58("62ATdscxMts7bNB45c7Md5GXYTPk1bQAvb7hDKB5LhXp")
 	val proportionDenomination = 10000000L
 	
 	// Branch to seperate deposit and withdrawal
@@ -15,7 +15,7 @@
 			(sToken: (Coll[Byte], Long)) => sToken._1 == iToken._1 && sToken._2 >= iToken._2
 			}}	
 		// Check if vote given to add more tokens, if so add more tokens.
-		val isValidTokenSize = if (INPUTS(1).tokens.size > 0 && INPUTS(1).tokens(0)._1 == voteNft) {
+		val isValidTokenSize = if (INPUTS(1).tokens.size > 0 && INPUTS(1).tokens(0)._1 == counterToken) {
 			val tokensToAdd = INPUTS(1).R6[Coll[Coll[Byte]]].get
 			tokensToAdd.forall { 
 				(tokenId : Coll[Byte]) =>
@@ -38,7 +38,7 @@
 		val recipient = voteResult.R5[Coll[Byte]].get
 		
 		// Validate result box
-		val isValidResult = voteResult.tokens(0)._1 == voteNft && voteResult.tokens(0)._2 == 2
+		val isValidResult = voteResult.tokens(0)._1 == counterToken && voteResult.tokens(0)._2 == 2
 		
 		// Branch for regular withdrawal and new treasury withdrawal
 		if (proportionAwared != proportionDenomination) {	
