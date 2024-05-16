@@ -1,17 +1,30 @@
 ```scala
 {
 	// Constants
+	// Tokens and Scripts
+	val validVoteId = fromBase58("8pAAY1jSm593e5Zf3PWkiT3ohog4MaXRb5C7cd9t3Cqz")
+	val quacksId = fromBase58("aa5Hq5V5ssGxbReLMzpJ55nVrb73CWJ1oRiKD2X5Qkv")
+	val proposalTree = fromBase58("BwG2CiXGg2qt15uXmGi2CsxU5QmmdbZwYX2y6jJW6WtF")
+	
+	// Durations
 	val nextVoteDeadline = SELF.R4[Long].get
-	val passProposalDeadline = nextVoteDeadline + 50 // 150L
-	val newProposalDeadline = passProposalDeadline + 50 // 150L
-	val validVoteId = fromBase58("nJYQ74Zu8T7NS5jgT85HUnhPfQzu9hxJ33j41uaVeeB")
-	val quacksId = fromBase58("81KtBNiSkgB23BHv7xPrpnjjpj1CYWegbtMaGdRNTeR5")
-	val minimumVotes = 100000L
+	val passProposalDeadline = nextVoteDeadline + 360 // 150L
+	val newProposalDeadline = passProposalDeadline + 360 // 150L
+	val votingPeriodicity = 20160L // 20160L
+	val noNewProposalPeriod = 1000L // 1000L
+	
+	// Define voting periods
+	val isBeforeCounting = HEIGHT < nextVoteDeadline - noNewProposalPeriod
+	val isCountingPeriod = HEIGHT > nextVoteDeadline && HEIGHT < passProposalDeadline
+	val isVoteValidationPeriod = HEIGHT > passProposalDeadline && HEIGHT < newProposalDeadline
+	val isNewProposalPeriod = HEIGHT > newProposalDeadline
+
+	// Vote Values
+	val initiationHurdle = 100000000L // 10000000000L
+	val minimumVotesPrelim = 600000000L // 60000000000L
+	val minimumVotesFinal = 300000000000L // 300000000000L
 	val voteResultDenomination = 1000L
 	val minimumSupport = 500L
-	val proposalTree = fromBase58("3g9YV34ti9CRvDEZZpUTeS64tD3PmtVYRvrtc8Q8MfVA")
-	val votingPeriodicity = 300L // 21900
-	val noNewProposalPeriod = 10L // 1000
 	val elevatedSupport = 900L
 	val elevatedProportion = 1000000L
 	
@@ -37,11 +50,7 @@
 	val successorInitiationAmount = successor.R8[Long].get
 	val successorVoteValidation = successor.R9[Long].get
 	
-	// Define voting periods
-	val isBeforeCounting = HEIGHT < nextVoteDeadline - noNewProposalPeriod
-	val isCountingPeriod = HEIGHT > nextVoteDeadline && HEIGHT < passProposalDeadline
-	val isVoteValidationPeriod = HEIGHT > passProposalDeadline && HEIGHT < newProposalDeadline
-	val isNewProposalPeriod = HEIGHT > newProposalDeadline
+
 
 	if (isBeforeCounting) {
 		// Allow for updates to voting item
@@ -54,7 +63,7 @@
 		val isValidInitiationBox = (
 			voteInitiationBox.tokens(0)._1 == quacksId && 
 			votePower > currentInitiationAmount &&
-			votePower > minimumVotes
+			votePower > initiationHurdle
 		)
 		
 		// Recreate successor with new vote item
@@ -108,7 +117,8 @@
 				in.tokens(1)._1 == quacksId &&
 				in.R8[Long].get < nextVoteDeadline
 			)
-		}
+		} // Note that the only boxes with token validVoteId are user votes and time validation
+		// Time validation cannot be considered though as it does not allow valieVoteIds to be burnt 
 		
 		val isVoteTokensBurnt = OUTPUTS.forall{
 			(out : Box) => out.tokens.forall{
@@ -146,15 +156,17 @@
 		val currentProposalProportion = currentProposalBox.R4[Long].get
 		val currentProposalRecipient = currentProposalBox.R5[Coll[Byte]].get
 		val currentProposalValidationHeight = currentProposalBox.R6[Long].get
+		val currentProposalRecordedDeadline = currentProposalBox.R7[Long].get
 		
 		val isValidProposalBox = (
 			currentProposalTokens._1 == currentResultTokens._1 &&
 			currentProposalTokens._2 == 1 &&
-			currentResultTokens._2 == currentProposalValidationHeight  
+			currentResultTokens._2 == currentProposalValidationHeight &&
+			currentProposalRecordedDeadline == nextVoteDeadline - votingPeriodicity
 		)
 		
 		// Check votes to pass pending proposal
-		val isVoteSuccessful = if (currentTotalVotes > minimumVotes) {
+		val isVoteSuccessful = if (currentTotalVotes > minimumVotesFinal) {
 			val voteProportion = currentVoteValidation * voteResultDenomination / currentTotalVotes
 			if (currentProposalProportion > elevatedProportion) {
 				voteProportion > elevatedSupport
@@ -185,8 +197,11 @@
 		val isValidTokens = successorResultTokens._1 == currentResultTokens._1 && successorResultTokens._2 == currentResultTokens._2 - 1
 		val isTokenArraySizeConstant = successor.tokens.size == SELF.tokens.size
 		val isDeadlineMaintained = nextVoteDeadline == successorVoteDeadline
-		val isVoteReset = successorProportionVote == (0L,0L)
-		val isTotalVotesValid = successorTotalVotes == 0L
+		
+		val isProportionVoteValid = successorProportionVote == currentProportionVote
+		val isRecipientVoteValid = successorRecipientVote == currentRecipientVote
+		
+		val isTotalVotesValid = successorTotalVotes == currentTotalVotes
 		val isVoteValidationValid = successorVoteValidation == 0L	
 		val isInitiationAmountReset = successorInitiationAmount == 0L
 		
@@ -202,14 +217,15 @@
 		isValidTokens &&
 		isTokenArraySizeConstant &&
 		isDeadlineMaintained &&
-		isVoteReset &&
+		isProportionVoteValid &&
+		isRecipientVoteValid &&
 		isTotalVotesValid &&
 		isVoteValidationValid &&
 		isInitiationAmountReset
 	} else if (isNewProposalPeriod) {
 		// Write result of vote to a proposal box if passed.
 		val isVoteSuccessful = (
-			currentTotalVotes > minimumVotes &&
+			currentTotalVotes > minimumVotesPrelim &&
 			currentProportionVote._2 * voteResultDenomination / currentTotalVotes > minimumSupport
 		)
 		
@@ -221,7 +237,7 @@
 		val isNewDeadlineValid = successorVoteDeadline == nextVoteDeadline + votingPeriodicity
 		val isVoteReset = successorProportionVote == (0L,0L)
 		val isTotalVotesValid = successorTotalVotes == 0L
-		val isVoteValidationValid = successorVoteValidation == currentVoteValidation
+		val isVoteValidationValid = successorVoteValidation == 0L
 		val isInitiationAmountReset = successorInitiationAmount == 0L
 		
 		val isValidRecreation = (
@@ -243,13 +259,15 @@
 			val proposalProportion = proposalBox.R4[Long].get
 			val proposalRecipient = proposalBox.R5[Coll[Byte]].get
 			val proposalValidationHeight = proposalBox.R6[Long].get
+			val proposalRecordedDeadline = proposalBox.R7[Long].get
 			
 			// Construct proposal box
 			val isValidProposalScript = blake2b256(proposalScript) == proposalTree
 			val isValidProposalNft = proposalNft._1 == currentResultTokens._1 && proposalNft._2 == 1
 			val isValidProportion = proposalProportion == currentProportionVote._1 
 			val isValidRecipient = proposalRecipient == currentRecipientVote
-			val isValidValidationHeight = proposalValidationHeight == currentResultTokens._2
+			val isValidValidationHeight = proposalValidationHeight == successorResultTokens._2
+			val isValidRecordedDeadline = proposalRecordedDeadline == nextVoteDeadline
 			
 			val isValidTokens = successorResultTokens._1 == currentResultTokens._1 && successorResultTokens._2 == currentResultTokens._2 - 1
 			
@@ -260,6 +278,7 @@
 			isValidProportion &&
 			isValidValidationHeight &&
 			isValidRecipient &&
+			isValidRecordedDeadline &&
 			isValidTokens			
 		} else {
 			isValidRecreation &&
