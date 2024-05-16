@@ -1,8 +1,9 @@
 ```scala
 {
 	// Constants
-	val userVoteContract = fromBase58("6dshN62KwVWd2zAKyM1ddESU2quNKzEiSEPsdz3Z1KLP")
-	val quacksId = fromBase58("81KtBNiSkgB23BHv7xPrpnjjpj1CYWegbtMaGdRNTeR5")
+	val userVoteContract = fromBase58("9bjVXo29fWDenQ1xvubpNinB5ZoZ5PdLhEUGWZr8Qudx")
+	val quacksId = fromBase58("aa5Hq5V5ssGxbReLMzpJ55nVrb73CWJ1oRiKD2X5Qkv")
+	val MinimumVoteAmount = 50000L
 	
 	val currentTokens = SELF.tokens(0)
 	
@@ -17,6 +18,7 @@
 	
 	val isValidVoteScript = blake2b256(userVoteScript) == userVoteContract
 	val isQuacksPresent = userQuacks._1 == quacksId
+	val isAboveMinimumVote = userQuacks._2 >= MinimumVoteAmount
 	val isValidVoteTokens = userVoteTokens._1 == currentTokens._1 && userVoteTokens._2 == 1
 	val isValidVoteHeight = userVoteHeight > HEIGHT
 	
@@ -28,6 +30,7 @@
 	isValidVoteHeight &&
 	isScriptMaintained &&
 	isQuacksPresent &&
+	isAboveMinimumVote &&
 	isTokensValid
 }
 ```
