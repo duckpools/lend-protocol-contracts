@@ -1,7 +1,9 @@
 ```scala
 {
-	val emissionBlock = 1210027
+	val emissionBlock = 1272551 
+	val blocksInThreeMonths = 65700L
 	val precision = 1000000000L
+	val MaxReceiptTokens = 20000000000000L
 		
 	// Initial State
 	val iScript = SELF.propositionBytes
@@ -9,9 +11,6 @@
 	val iTokens = SELF.tokens
 	val iReceiptTokens = SELF.tokens(0)
 	val iQuacks = SELF.tokens(1)
-	val iTotalQuacks = SELF.R4[Long].get
-	val iAssetAmounts = SELF.R5[Coll[Long]].get
-	val iErgAmount = SELF.R6[Long].get
 
 	// Final State
 	val successor = OUTPUTS(0)
@@ -20,15 +19,12 @@
 	val fTokens = successor.tokens
 	val fReceiptTokens = successor.tokens(0)
 	val fQuacks = successor.tokens(1)
-	val fTotalQuacks = successor.R4[Long].get
-	val fAssetAmounts = successor.R5[Coll[Long]].get
-	val fErgAmount = successor.R6[Long].get
 	
 	val deltaReceiptTokens = fReceiptTokens._2 - iReceiptTokens._2
 	val deltaQuacks = fQuacks._2 - iQuacks._2
 
-	if (HEIGHT < emissionBlock) {
-		// Allow deposits
+	val generalLogic = if (HEIGHT < emissionBlock) {
+		// Allow Exchanges
 		val isValidExchange = deltaQuacks == -1 * deltaReceiptTokens 
 		val isDeltaQuacksPositive = deltaQuacks > 0
 		
@@ -38,9 +34,6 @@
 		val retainTokenSize = iTokens.size == fTokens.size
 		val retainReceiptId = iReceiptTokens._1 == fReceiptTokens._1
 		val retainQuacksId = iQuacks._1 == fQuacks._1 
-		val retainAssetAmounts = fAssetAmounts == iAssetAmounts
-		val retainErgAmounts = fErgAmount == iErgAmount
-		val isValidTotalQuacks = fTotalQuacks == iTotalQuacks + deltaQuacks
 		
 		isValidExchange &&
 		isDeltaQuacksPositive &&
@@ -49,19 +42,16 @@
 		retainTokens &&
 		retainTokenSize &&
 		retainReceiptId &&
-		retainQuacksId &&
-		retainAssetAmounts &&
-		retainErgAmounts &&
-		isValidTotalQuacks
+		retainQuacksId
 	} else {
 		// Allow withdrawals
-		val userShare = ((deltaReceiptTokens.toBigInt * precision.toBigInt).toBigInt / iTotalQuacks.toBigInt).toBigInt
-		val isValidValue = fValue.toBigInt >= iValue.toBigInt - (userShare * iErgAmount.toBigInt) / precision.toBigInt
+		val circulatingReceipts = MaxReceiptTokens - iReceiptTokens._2
+		val userShare = ((deltaReceiptTokens.toBigInt * precision.toBigInt).toBigInt / circulatingReceipts.toBigInt).toBigInt
+		val isValidValue = fValue.toBigInt >= iValue.toBigInt - (userShare * iValue.toBigInt) / precision.toBigInt
 		val slicedExpectedTokens = iTokens.slice(1, iTokens.size)
-		val zippedTokens = slicedExpectedTokens.zip(iAssetAmounts)
-		val expectedTokens = zippedTokens.map{
-				(tokenTuple : ((Coll[Byte], Long), Long)) => 
-				(tokenTuple(0)._1, (tokenTuple(0)._2.toBigInt -  (userShare * tokenTuple(1).toBigInt) / precision.toBigInt))
+		val expectedTokens = slicedExpectedTokens.map{
+				(token : (Coll[Byte], Long)) => 
+				(token._1, max((token._2.toBigInt -  (userShare * token._2.toBigInt) / precision.toBigInt), 1.toBigInt))
 		}
 		
 		val outputTokensBigInt = fTokens.slice(1, iTokens.size).map{
@@ -69,22 +59,19 @@
 				(token._1, token._2.toBigInt)
 		}
 		val isValidTokens = expectedTokens == outputTokensBigInt
+		val isDeltaReceiptsPositive = deltaReceiptTokens > 0
 		
 		val retainScript = iScript == fScript
 		val retainTokenSize = iTokens.size == fTokens.size
 		val retainReceiptId = iReceiptTokens._1 == fReceiptTokens._1
-		val retainTotalQuacks = iTotalQuacks == fTotalQuacks	
-		val retainAssetAmounts = fAssetAmounts == iAssetAmounts
-		val retainErgAmounts = fErgAmount == iErgAmount
 		
 		isValidValue &&
 		isValidTokens &&
+		isDeltaReceiptsPositive &&
 		retainScript &&
 		retainTokenSize &&
-		retainReceiptId &&
-		retainTotalQuacks &&
-		retainAssetAmounts &&
-		retainErgAmounts 
+		retainReceiptId
 	}
+	sigmaProp(generalLogic) || (PK("") && HEIGHT > (emissionBlock + blocksInThreeMonths))
 }
 ```
