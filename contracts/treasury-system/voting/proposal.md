@@ -1,6 +1,6 @@
 ```scala
 {
-	val treasuryNft = fromBase58("3Yb9WKKKsEAiJVbh5Bf1qpVNUFs6dRQzvs85XXQ1nDnU") // Set at Genesis
+	val treasuryNft = fromBase58("Goj3WUfmRmWgF6AngvFowK6CwQbZTmapDY3H136f528K") // Set at Genesis
 	val currentTokens = SELF.tokens(0)
 	
 	if (OUTPUTS(1).tokens.size == 1) {	
@@ -38,7 +38,8 @@
 		isProportionMaintained &&
 		isRecipientMaintained &&
 		isFirstUpdate && 
-		isValidTokens
+		isValidTokens &&
+		HEIGHT > 124
 	} else {
 		val treasury = INPUTS(1)
 		treasury.tokens(0)._1 == treasuryNft &&
@@ -48,5 +49,5 @@
 			}
 		}
 	}	
-}		
+}			
 ```
