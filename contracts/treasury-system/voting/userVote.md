@@ -1,7 +1,7 @@
 ```scala
 {
 	// Constants
-	val counterToken = fromBase58("8QdozDTvMhPDPu8DPajs8awo6F4e6LVpnszntq2WS3b5")
+	val counterToken = fromBase58("EHjj44TwNZKy5BA4y8fzpxSuh6B5evxZGzNto9dF4rsY")
 	val minimumCounterTokens = 100000000 // In excess of 2 (to exclude proposal boxes)
 	val cancellationCooldown = 20 // To Prevent spam on height validator
 	
