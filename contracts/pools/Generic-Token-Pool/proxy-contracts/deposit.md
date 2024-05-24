@@ -15,11 +15,14 @@
 		val validRefundScript = refundBox.propositionBytes == user
 		val validHeight = HEIGHT >= publicRefund
 		val multiBoxRefund = if (refundBox.R4[Coll[Byte]].isDefined) refundBox.R4[Coll[Byte]].get == SELF.id else false
+		val validTokens = if(refundBox.tokens.size != 0) refundBox.tokens(0) == SELF.tokens(0) else false
+
 		val refund = (
 			validRefundScript &&
 			validDeltaErg &&
 			multiBoxRefund &&
-			validHeight
+			validHeight &&
+			validTokens
 		)
 		refund
 	} else {
